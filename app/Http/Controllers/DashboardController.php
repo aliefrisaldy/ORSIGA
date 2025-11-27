@@ -36,9 +36,11 @@ class DashboardController extends Controller
 
         $recentReports = RepairReport::orderBy('created_at', 'desc')->take(5)->get();
 
-        $topTechnicians = RepairReport::select('technician_name', DB::raw('count(*) as total_reports'))
+        // Top Technicians - Cross-database compatible
+        $topTechnicians = RepairReport::select('technician_name')
+            ->selectRaw('COUNT(*) as total_reports')
             ->groupBy('technician_name')
-            ->orderBy('total_reports', 'desc')
+            ->orderByDesc('total_reports')
             ->take(5)
             ->get();
 
@@ -69,16 +71,19 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
-        // Sites with most open reports
+        // Sites with most open reports - FIXED: Use Collection filtering instead of HAVING
         $topAffectedSites = Site::withCount([
             'siteReports as open_reports_count' => function ($query) {
                 $query->where('status', 'Open');
             }
         ])
-            ->having('open_reports_count', '>', 0)
-            ->orderBy('open_reports_count', 'desc')
+            ->get()
+            ->filter(function ($site) {
+                return $site->open_reports_count > 0;
+            })
+            ->sortByDesc('open_reports_count')
             ->take(5)
-            ->get();
+            ->values();
 
         // Site Reports Monthly Trend
         $siteReportsMonthlyData = $this->getSiteReportsMonthlyTrendData();
@@ -148,6 +153,11 @@ class DashboardController extends Controller
     }
 
     // ==================== REPAIR REPORTS TREND DATA ====================
+    
+    /**
+     * Get daily trend data for the current week
+     * Cross-database compatible using whereDate()
+     */
     private function getDailyTrendData()
     {
         $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
@@ -168,9 +178,12 @@ class DashboardController extends Controller
         ];
     }
 
+    /**
+     * Get weekly trend data for the last 8 weeks
+     * Cross-database compatible using whereBetween()
+     */
     private function getWeeklyTrendData()
     {
-        // Cross-database compatible approach
         $labels = [];
         $values = [];
 
@@ -185,12 +198,18 @@ class DashboardController extends Controller
             $values[] = $count;
         }
 
-        return ['labels' => $labels, 'values' => $values];
+        return [
+            'labels' => $labels,
+            'values' => $values
+        ];
     }
 
+    /**
+     * Get monthly trend data for the last 6 months
+     * Cross-database compatible using whereYear() and whereMonth()
+     */
     private function getMonthlyTrendData()
     {
-        // Cross-database compatible approach using Carbon
         $labels = [];
         $values = [];
 
@@ -204,10 +223,18 @@ class DashboardController extends Controller
             $values[] = $count;
         }
 
-        return ['labels' => $labels, 'values' => $values];
+        return [
+            'labels' => $labels,
+            'values' => $values
+        ];
     }
 
     // ==================== SITE REPORTS TREND DATA ====================
+    
+    /**
+     * Get daily site reports trend data for the current week
+     * Cross-database compatible using whereDate()
+     */
     private function getSiteReportsDailyTrendData()
     {
         $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
@@ -218,7 +245,8 @@ class DashboardController extends Controller
             $date = $startOfWeek->copy()->addDays($i);
             $labels[] = $date->format('l');
 
-            $values[] = SiteReport::whereDate('created_at', $date->format('Y-m-d'))->count();
+            $count = SiteReport::whereDate('created_at', $date->format('Y-m-d'))->count();
+            $values[] = $count;
         }
 
         return [
@@ -227,6 +255,10 @@ class DashboardController extends Controller
         ];
     }
 
+    /**
+     * Get weekly site reports trend data for the last 8 weeks
+     * Cross-database compatible using whereBetween()
+     */
     private function getSiteReportsWeeklyTrendData()
     {
         $labels = [];
@@ -239,7 +271,8 @@ class DashboardController extends Controller
 
             $labels[] = 'Week ' . $week->weekOfYear;
 
-            $values[] = SiteReport::whereBetween('created_at', [$startOfWeek, $endOfWeek])->count();
+            $count = SiteReport::whereBetween('created_at', [$startOfWeek, $endOfWeek])->count();
+            $values[] = $count;
         }
 
         return [
@@ -248,6 +281,10 @@ class DashboardController extends Controller
         ];
     }
 
+    /**
+     * Get monthly site reports trend data for the last 6 months
+     * Cross-database compatible using whereYear() and whereMonth()
+     */
     private function getSiteReportsMonthlyTrendData()
     {
         $labels = [];
@@ -257,9 +294,10 @@ class DashboardController extends Controller
             $month = Carbon::now()->subMonths($i);
             $labels[] = $month->format('M Y');
 
-            $values[] = SiteReport::whereYear('created_at', $month->year)
+            $count = SiteReport::whereYear('created_at', $month->year)
                 ->whereMonth('created_at', $month->month)
                 ->count();
+            $values[] = $count;
         }
 
         return [
@@ -269,27 +307,38 @@ class DashboardController extends Controller
     }
     
     // ==================== CITY REPORTS DATA ====================
+    
+    /**
+     * Get city-based reports data by matching coordinates with GeoJSON polygons
+     * This function is database-agnostic as it processes data in PHP
+     */
     private function getCityReportsData($region = 'sulteng')
     {
+        // Get all reports with valid coordinates
         $reports = RepairReport::whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->get();
 
+        // Determine which GeoJSON file to use
         $fileName = $region === 'gorontalo' ? 'GorontaloDashboard.json' : 'SultengDashboard.json';
         $polygonsPath = public_path('geojson/' . $fileName);
 
+        // Return empty data if file doesn't exist
         if (!file_exists($polygonsPath)) {
             return ['labels' => [], 'values' => []];
         }
 
+        // Load and parse GeoJSON data
         $polygonData = json_decode(file_get_contents($polygonsPath), true);
         $cityReports = [];
 
+        // Initialize counter for each city
         foreach ($polygonData['features'] as $feature) {
             $cityName = $feature['properties']['NAMOBJ'] ?? $feature['properties']['name'] ?? 'Unknown City';
             $cityReports[$cityName] = 0;
         }
 
+        // Count reports for each city
         foreach ($reports as $report) {
             $reportPoint = ['lat' => $report->latitude, 'lng' => $report->longitude];
 
@@ -298,11 +347,12 @@ class DashboardController extends Controller
 
                 if ($this->isPointInPolygon($reportPoint, $feature['geometry'])) {
                     $cityReports[$cityName]++;
-                    break;
+                    break; // Point can only be in one city
                 }
             }
         }
 
+        // Sort cities alphabetically
         ksort($cityReports);
 
         return [
@@ -311,6 +361,10 @@ class DashboardController extends Controller
         ];
     }
 
+    /**
+     * Check if a point is inside a polygon geometry
+     * Supports both Polygon and MultiPolygon types
+     */
     private function isPointInPolygon($point, $geometry)
     {
         $x = $point['lng'];
@@ -329,6 +383,14 @@ class DashboardController extends Controller
         return false;
     }
 
+    /**
+     * Ray-casting algorithm to determine if a point is inside a polygon
+     * 
+     * @param float $x Longitude of the point
+     * @param float $y Latitude of the point
+     * @param array $polygon Array of coordinate pairs [[lng, lat], ...]
+     * @return bool True if point is inside polygon, false otherwise
+     */
     private function pointInPolygon($x, $y, $polygon)
     {
         $inside = false;
@@ -340,6 +402,7 @@ class DashboardController extends Controller
             $xj = $polygon[$j][0];
             $yj = $polygon[$j][1];
 
+            // Ray-casting algorithm
             if ((($yi > $y) !== ($yj > $y)) && ($x < ($xj - $xi) * ($y - $yi) / ($yj - $yi) + $xi)) {
                 $inside = !$inside;
             }
