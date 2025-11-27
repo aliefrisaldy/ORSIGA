@@ -11312,25 +11312,32 @@ class SitesTableSeeder extends Seeder
                 'updated_at' => '2025-11-12 08:21:00',
             ]
         ];
+$data = array_filter($data, function($row) {
+    return isset($row['site_id']) && $row['site_id'] !== null && isset($row['latitude']) && $row['latitude'] !== null && isset($row['longitude']) && $row['longitude'] !== null;
+});
 
-        $data = array_filter($data, function($row) {
-            return isset($row['site_id']) && $row['site_id'] !== null && isset($row['latitude']) && $row['latitude'] !== null && isset($row['longitude']) && $row['longitude'] !== null;
-        });
+$validCount = count($data);
 
-        $validCount = count($data);
-
-        if ($validCount === 0) {
-            $this->command->warn('Tidak ada data valid untuk diinsert!');
-            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-            return;
-        }
-
-        foreach (array_chunk($data, 500) as $chunk) {
-            DB::table('sites')->insert($chunk);
-        }
-
+if ($validCount === 0) {
+    $this->command->warn('Tidak ada data valid untuk diinsert!');
+    // ⚠️ UBAH INI
+    if (DB::getDriverName() === 'sqlite') {
+        DB::statement('PRAGMA foreign_keys = ON;');
+    } else {
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+    }
+    return;
+}
 
-        $this->command->info('Berhasil insert ' . $validCount . ' data ke table sites!');
+foreach (array_chunk($data, 500) as $chunk) {
+    DB::table('sites')->insert($chunk);
+}
+
+
+if (DB::getDriverName() === 'sqlite') {
+    DB::statement('PRAGMA foreign_keys = ON;');
+} else {
+    DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+}
     }
 }
