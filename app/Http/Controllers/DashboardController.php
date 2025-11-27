@@ -170,24 +170,19 @@ class DashboardController extends Controller
 
     private function getWeeklyTrendData()
     {
-        $data = RepairReport::select(
-            DB::raw('YEARWEEK(created_at, 3) as week'),
-            DB::raw('COUNT(*) as count')
-        )
-            ->where('created_at', '>=', Carbon::now()->subWeeks(8))
-            ->groupBy('week')
-            ->orderBy('week')
-            ->get();
-
+        // Cross-database compatible approach
         $labels = [];
         $values = [];
 
         for ($i = 7; $i >= 0; $i--) {
             $week = Carbon::now()->subWeeks($i);
+            $startOfWeek = $week->copy()->startOfWeek();
+            $endOfWeek = $week->copy()->endOfWeek();
+
             $labels[] = 'Week ' . $week->weekOfYear;
-            $weekKey = $week->format('oW');
-            $count = $data->where('week', $weekKey)->first();
-            $values[] = $count ? $count->count : 0;
+
+            $count = RepairReport::whereBetween('created_at', [$startOfWeek, $endOfWeek])->count();
+            $values[] = $count;
         }
 
         return ['labels' => $labels, 'values' => $values];
@@ -195,25 +190,18 @@ class DashboardController extends Controller
 
     private function getMonthlyTrendData()
     {
-        $data = RepairReport::select(
-            DB::raw('YEAR(created_at) as year'),
-            DB::raw('MONTH(created_at) as month'),
-            DB::raw('COUNT(*) as count')
-        )
-            ->where('created_at', '>=', Carbon::now()->subMonths(6))
-            ->groupBy('year', 'month')
-            ->orderBy('year')
-            ->orderBy('month')
-            ->get();
-
+        // Cross-database compatible approach using Carbon
         $labels = [];
         $values = [];
 
         for ($i = 5; $i >= 0; $i--) {
             $month = Carbon::now()->subMonths($i);
             $labels[] = $month->format('M Y');
-            $count = $data->where('year', $month->year)->where('month', $month->month)->first();
-            $values[] = $count ? $count->count : 0;
+
+            $count = RepairReport::whereYear('created_at', $month->year)
+                ->whereMonth('created_at', $month->month)
+                ->count();
+            $values[] = $count;
         }
 
         return ['labels' => $labels, 'values' => $values];
@@ -279,6 +267,7 @@ class DashboardController extends Controller
             'values' => $values
         ];
     }
+    
     // ==================== CITY REPORTS DATA ====================
     private function getCityReportsData($region = 'sulteng')
     {
