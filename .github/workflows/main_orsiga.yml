@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy PHP app to Azure Web App - ORSIGA
 
 on:
@@ -39,9 +36,31 @@ jobs:
         with:
           files: 'composer.json'
 
+      # 🆕 Tambahkan step ini SEBELUM composer install
+      - name: Create .env file for build
+        run: |
+          echo "APP_NAME=Laravel" > .env
+          echo "APP_ENV=production" >> .env
+          echo "APP_KEY=base64:dummy_key_for_build_only" >> .env
+          echo "APP_DEBUG=false" >> .env
+          echo "APP_URL=https://orsiga.azurewebsites.net" >> .env
+          echo "TELEGRAM_BOT_TOKEN=dummy_token_for_build" >> .env
+          echo "DB_CONNECTION=mysql" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_PORT=3306" >> .env
+          echo "DB_DATABASE=dummy" >> .env
+          echo "DB_USERNAME=dummy" >> .env
+          echo "DB_PASSWORD=dummy" >> .env
+          echo "LOG_CHANNEL=stack" >> .env
+          echo "LOG_LEVEL=debug" >> .env
+
       - name: Run composer install if composer.json exists
         if: steps.check_files.outputs.files_exists == 'true'
-        run: composer validate --no-check-publish && composer install --prefer-dist --no-progress
+        run: composer validate --no-check-publish && composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
+
+      # 🆕 Hapus .env setelah build agar tidak terbawa ke deployment
+      - name: Remove temporary .env file
+        run: rm -f .env
 
       - name: Zip artifact for deployment
         run: zip -r release.zip . -x "node_modules/*" ".git/*"
@@ -79,5 +98,3 @@ jobs:
           app-name: 'ORSIGA'
           slot-name: 'Production'
           package: .
-
-          
