@@ -39,7 +39,16 @@ class TelegramBot extends Command
     public function __construct()
     {
         parent::__construct();
-        $this->telegram = new Api(env('TELEGRAM_BOT_TOKEN'));
+        // JANGAN init Telegram API di sini - akan error saat build
+    }
+
+    // 🆕 Method untuk lazy loading Telegram API
+    private function getTelegram()
+    {
+        if (!$this->telegram) {
+            $this->telegram = new Api(env('TELEGRAM_BOT_TOKEN'));
+        }
+        return $this->telegram;
     }
 
     // Method untuk POLLING (dipanggil saat php artisan bot:run)
@@ -49,7 +58,7 @@ class TelegramBot extends Command
         $this->info("🤖 Bot is running with polling...");
 
         while (true) {
-            $updates = $this->telegram->getUpdates([
+            $updates = $this->getTelegram()->getUpdates([
                 'offset' => $offset + 1,
                 'timeout' => 60,
             ]);
@@ -90,7 +99,7 @@ class TelegramBot extends Command
 
             // Answer callback query immediately
             try {
-                $this->telegram->answerCallbackQuery([
+                $this->getTelegram()->answerCallbackQuery([
                     'callback_query_id' => $callback->getId(),
                 ]);
             } catch (\Exception $e) {
@@ -100,21 +109,21 @@ class TelegramBot extends Command
             // 🔹 Handle menu utama
             if ($state === 'main_menu') {
                 if ($data === 'create_report') {
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "📝 Mari isi laporan gangguan.\nMasukkan *No Tiket*:",
                         'parse_mode' => 'Markdown'
                     ]);
                     Cache::put("report_state_$chatId", 'no_tiket', 300);
                 } elseif ($data === 'update_report') {
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "🔄 Masukkan *No Tiket* yang ingin diupdate:",
                         'parse_mode' => 'Markdown'
                     ]);
                     Cache::put("report_state_$chatId", 'update_ticket', 300);
                 } elseif ($data === 'get_data_by_ticket') {
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "🔍 Masukkan *No Tiket* yang ingin dicari:",
                         'parse_mode' => 'Markdown'
@@ -132,7 +141,7 @@ class TelegramBot extends Command
                     $reportData['cable_type'] = $data;
                     Cache::put("report_data_$chatId", $reportData, 300);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "⚠️ Pilih penyebab gangguan:",
                         'reply_markup' => json_encode([
@@ -166,7 +175,7 @@ class TelegramBot extends Command
                     $reportData['disruption_cause'] = $this->penyebabMap[$data];
                     Cache::put("report_data_$chatId", $reportData, 300);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "🔧 Pilih jenis penyelesaian gangguan:",
                         'reply_markup' => json_encode([
@@ -190,7 +199,7 @@ class TelegramBot extends Command
                     $reportData['repair_type'] = $this->penyelesaianMap[$data];
                     Cache::put("report_data_$chatId", $reportData, 300);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "📝 Masukkan *Detail Pekerjaan*:",
                         'parse_mode' => 'Markdown'
@@ -211,7 +220,7 @@ class TelegramBot extends Command
 
                 Cache::put("report_data_$chatId", $reportData, 300);
 
-                $this->telegram->sendMessage([
+                $this->getTelegram()->sendMessage([
                     'chat_id' => $chatId,
                     'text' => "📸 Silakan kirim foto dokumentasi (bisa beberapa kali).\nKlik tombol *Selesai* jika sudah cukup.",
                     'parse_mode' => 'Markdown',
@@ -263,7 +272,7 @@ class TelegramBot extends Command
 
                     $report = $existingReport;
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "✅ Data laporan untuk *No Tiket {$reportData['ticket_number']}* berhasil *diperbarui*.",
                         'parse_mode' => 'Markdown'
@@ -281,7 +290,7 @@ class TelegramBot extends Command
                         'documentation' => $reportData['documentation'] ?? []
                     ]);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "✅ Laporan baru berhasil disimpan dengan No Tiket {$report->ticket_number}."
                     ]);
@@ -306,7 +315,7 @@ class TelegramBot extends Command
 
             // ✅ Handle relasi - tombol tambah lagi
             if ($state === 'relasi_confirm' && $data === 'relasi_tambah_lagi') {
-                $this->telegram->sendMessage([
+                $this->getTelegram()->sendMessage([
                     'chat_id' => $chatId,
                     'text' => "🔗 Masukkan *No Tiket* yang ingin direlasikan:",
                     'parse_mode' => 'Markdown'
@@ -349,7 +358,7 @@ class TelegramBot extends Command
 
                     $report = $existingReport;
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "✅ Data laporan untuk *No Tiket {$reportData['ticket_number']}* berhasil *diperbarui*.",
                         'parse_mode' => 'Markdown'
@@ -367,7 +376,7 @@ class TelegramBot extends Command
                         'documentation' => $reportData['documentation'] ?? [],
                     ]);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "✅ Laporan baru berhasil disimpan dengan No Tiket {$report->ticket_number}."
                     ]);
@@ -420,7 +429,7 @@ class TelegramBot extends Command
                 case 'search_ticket':
                     $noTiket = trim($text);
                     if (empty($noTiket)) {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "❌ No Tiket tidak boleh kosong. Silakan masukkan lagi."
                         ]);
@@ -433,7 +442,7 @@ class TelegramBot extends Command
                 case 'update_ticket':
                     $noTiket = trim($text);
                     if (empty($noTiket)) {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "❌ No Tiket tidak boleh kosong. Silakan masukkan lagi."
                         ]);
@@ -443,7 +452,7 @@ class TelegramBot extends Command
                     // Cek apakah tiket ada di database
                     $existingReport = Report::where('ticket_number', $noTiket)->first();
                     if (!$existingReport) {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "❌ No Tiket *$noTiket* tidak ditemukan di database.\nSilakan periksa kembali atau 📝 *Buat Laporan baru*.",
                             'parse_mode' => 'Markdown'
@@ -456,7 +465,7 @@ class TelegramBot extends Command
                     $data['ticket_number'] = $noTiket;
                     Cache::put("report_data_$chatId", $data, 300);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "✅ Tiket *$noTiket* ditemukan.\nMasukkan *Nama Teknisi* untuk update:",
                         'parse_mode' => 'Markdown'
@@ -468,7 +477,7 @@ class TelegramBot extends Command
                     $noTiket = trim($text);
 
                     if (empty($noTiket)) {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "❌ No Tiket tidak boleh kosong. Silakan masukkan lagi."
                         ]);
@@ -479,7 +488,7 @@ class TelegramBot extends Command
                     $existing = Report::where('ticket_number', $noTiket)->first();
 
                     if ($existing) {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "⚠️ Tiket *$noTiket* sudah ada di database.\nUntuk update data, gunakan menu *🔄 Update Laporan*.",
                             'parse_mode' => 'Markdown'
@@ -489,7 +498,7 @@ class TelegramBot extends Command
                     }
 
                     // Tiket baru → lanjut normal
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "✅ No Tiket *$noTiket* dicatat. Masukkan *Nama Teknisi*:",
                         'parse_mode' => 'Markdown'
@@ -504,7 +513,7 @@ class TelegramBot extends Command
                     $data['technician_name'] = $text;
                     Cache::put("report_data_$chatId", $data, 300);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "📍 Silakan kirim lokasi GPS Anda dengan menekan tombol di bawah:",
                         'reply_markup' => json_encode([
@@ -530,7 +539,7 @@ class TelegramBot extends Command
                         Cache::put("report_data_$chatId", $data, 300);
 
                         // Setelah lokasi, tanyakan tipe kabel - hapus reply keyboard
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "🔌 Pilih jenis tipe kabel:",
                             'reply_markup' => json_encode([
@@ -545,7 +554,7 @@ class TelegramBot extends Command
                         ]);
                         Cache::put("report_state_$chatId", 'tipe_kabel', 300);
                     } else {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "⚠️ Lokasi tidak valid. Silakan tekan tombol *📍 Share Location* di bawah:",
                             'parse_mode' => 'Markdown',
@@ -569,7 +578,7 @@ class TelegramBot extends Command
                     $data['work_details'] = $text;
                     Cache::put("report_data_$chatId", $data, 300);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "📸 Silakan kirim foto dokumentasi (bisa beberapa kali).\nKlik tombol *Selesai* jika sudah cukup.",
                         'parse_mode' => 'Markdown',
@@ -587,7 +596,7 @@ class TelegramBot extends Command
                 case 'dokumentasi':
                     // ✅ Tombol selesai ditekan
                     if ($text === '✅ Selesai') {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "🔗 Apakah Anda ingin menambahkan relasi tiket? (opsional)\n\nMasukkan *No Tiket* yang ingin direlasikan atau tekan *Selesai*:",
                             'parse_mode' => 'Markdown',
@@ -612,7 +621,7 @@ class TelegramBot extends Command
                     $noTiketRelasi = trim($text);
                     
                     if (empty($noTiketRelasi)) {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "❌ No Tiket tidak boleh kosong. Silakan masukkan lagi atau tekan tombol *Selesai*.",
                             'parse_mode' => 'Markdown'
@@ -624,7 +633,7 @@ class TelegramBot extends Command
                     $relatedTicket = Report::where('ticket_number', $noTiketRelasi)->first();
 
                     if (!$relatedTicket) {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "❌ No Tiket *$noTiketRelasi* tidak ditemukan di database.\n\nSilakan masukkan No Tiket lain atau tekan tombol *Selesai*.",
                             'parse_mode' => 'Markdown',
@@ -639,7 +648,7 @@ class TelegramBot extends Command
 
                     // Cek apakah tiket sama dengan tiket yang sedang dibuat
                     if ($noTiketRelasi === $data['ticket_number']) {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "❌ Tidak bisa merelasikan tiket dengan dirinya sendiri.\n\nSilakan masukkan No Tiket lain atau tekan tombol *Selesai*.",
                             'parse_mode' => 'Markdown',
@@ -655,7 +664,7 @@ class TelegramBot extends Command
                     // Cek apakah sudah ditambahkan sebelumnya
                     $selectedRelations = Cache::get("report_relations_$chatId", []);
                     if (in_array($noTiketRelasi, $selectedRelations)) {
-                        $this->telegram->sendMessage([
+                        $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
                             'text' => "⚠️ Tiket *$noTiketRelasi* sudah ditambahkan sebelumnya.\n\nSilakan masukkan No Tiket lain atau tekan tombol *Selesai*.",
                             'parse_mode' => 'Markdown',
@@ -672,7 +681,7 @@ class TelegramBot extends Command
                     $selectedRelations[] = $noTiketRelasi;
                     Cache::put("report_relations_$chatId", $selectedRelations, 300);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "✅ Tiket *$noTiketRelasi* berhasil ditambahkan!\n\n🔗 Apakah Anda ingin menambahkan tiket lain?",
                         'parse_mode' => 'Markdown',
@@ -692,7 +701,7 @@ class TelegramBot extends Command
                     $data['technician_name'] = $text;
                     Cache::put("report_data_$chatId", $data, 300);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "📝 Masukkan *Detail Pekerjaan* untuk di-append:",
                         'parse_mode' => 'Markdown'
@@ -704,7 +713,7 @@ class TelegramBot extends Command
                     $data['work_details'] = $text;
                     Cache::put("report_data_$chatId", $data, 300);
 
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "🔧 Pilih jenis penyelesaian gangguan:",
                         'reply_markup' => json_encode([
@@ -741,7 +750,7 @@ class TelegramBot extends Command
         Cache::forget("report_data_$chatId");
         Cache::forget("report_relations_$chatId");
 
-        $this->telegram->sendMessage([
+        $this->getTelegram()->sendMessage([
             'chat_id' => $chatId,
             'text' => "🏠 *Menu Utama Bot Laporan Gangguan*\n\nSilakan pilih menu yang diinginkan:",
             'parse_mode' => 'Markdown',
@@ -782,7 +791,7 @@ class TelegramBot extends Command
         $report = Report::where('ticket_number', $noTiket)->first();
 
         if (!$report) {
-            $this->telegram->sendMessage([
+            $this->getTelegram()->sendMessage([
                 'chat_id' => $chatId,
                 'text' => "❌ Data dengan No Tiket *$noTiket* tidak ditemukan.",
                 'parse_mode' => 'Markdown'
@@ -816,7 +825,7 @@ class TelegramBot extends Command
                 $message .= "🌐 *Koordinat:* {$report->latitude}, {$report->longitude}\n\n";
             }
 
-            $this->telegram->sendMessage([
+            $this->getTelegram()->sendMessage([
                 'chat_id' => $chatId,
                 'text' => $message,
                 'parse_mode' => 'Markdown',
@@ -824,7 +833,7 @@ class TelegramBot extends Command
             ]);
 
             if ($report->latitude && $report->longitude) {
-                $this->telegram->sendLocation([
+                $this->getTelegram()->sendLocation([
                     'chat_id' => $chatId,
                     'latitude' => $report->latitude,
                     'longitude' => $report->longitude
@@ -846,7 +855,7 @@ class TelegramBot extends Command
             ->get();
 
         if ($temporaryReports->isEmpty()) {
-            $this->telegram->sendMessage([
+            $this->getTelegram()->sendMessage([
                 'chat_id' => $chatId,
                 'text' => "❌ Tidak ada data dengan status Temporer."
             ]);
@@ -880,7 +889,7 @@ class TelegramBot extends Command
                 $message .= "\n";
 
                 if (strlen($message) > 3500) {
-                    $this->telegram->sendMessage([
+                    $this->getTelegram()->sendMessage([
                         'chat_id' => $chatId,
                         'text' => $message,
                         'parse_mode' => 'Markdown',
@@ -891,7 +900,7 @@ class TelegramBot extends Command
             }
 
             if (!empty($message)) {
-                $this->telegram->sendMessage([
+                $this->getTelegram()->sendMessage([
                     'chat_id' => $chatId,
                     'text' => $message,
                     'parse_mode' => 'Markdown',
@@ -910,7 +919,7 @@ class TelegramBot extends Command
         $fileId = $lastPhoto->getFileId();
 
         try {
-            $file = $this->telegram->getFile(['file_id' => $fileId]);
+            $file = $this->getTelegram()->getFile(['file_id' => $fileId]);
             $filePath = $file->getFilePath();
             $url = "https://api.telegram.org/file/bot" . env('TELEGRAM_BOT_TOKEN') . "/" . $filePath;
 
@@ -923,13 +932,13 @@ class TelegramBot extends Command
             $data['documentation'] = $docs;
             Cache::put("report_data_$chatId", $data, 300);
 
-            $this->telegram->sendMessage([
+            $this->getTelegram()->sendMessage([
                 'chat_id' => $chatId,
                 'text' => "✅ Foto berhasil disimpan. Kirim lagi jika masih ada, atau tekan tombol *Selesai*.",
                 'parse_mode' => 'Markdown'
             ]);
         } catch (\Exception $e) {
-            $this->telegram->sendMessage([
+            $this->getTelegram()->sendMessage([
                 'chat_id' => $chatId,
                 'text' => "❌ Gagal menyimpan foto. Coba lagi."
             ]);
@@ -963,7 +972,7 @@ class TelegramBot extends Command
                 'documentation' => $mergedDocs
             ]);
 
-            $this->telegram->sendMessage([
+            $this->getTelegram()->sendMessage([
                 'chat_id' => $chatId,
                 'text' => "✅ Data laporan untuk *No Tiket {$data['ticket_number']}* berhasil *diperbarui*.",
                 'parse_mode' => 'Markdown'
@@ -982,7 +991,7 @@ class TelegramBot extends Command
                 : $report->documentation;
 
             if (is_array($dokumentasi) && !empty($dokumentasi)) {
-                $this->telegram->sendMessage([
+                $this->getTelegram()->sendMessage([
                     'chat_id' => $chatId,
                     'text' => "📸 *Foto Dokumentasi:*",
                     'parse_mode' => 'Markdown'
@@ -993,13 +1002,13 @@ class TelegramBot extends Command
 
                     if (file_exists($filePath)) {
                         try {
-                            $this->telegram->sendPhoto([
+                            $this->getTelegram()->sendPhoto([
                                 'chat_id' => $chatId,
                                 'photo' => new \CURLFile($filePath),
                                 'caption' => "📷 Dokumentasi " . ($index + 1)
                             ]);
                         } catch (\Exception $e) {
-                            $this->telegram->sendMessage([
+                            $this->getTelegram()->sendMessage([
                                 'chat_id' => $chatId,
                                 'text' => "❌ Gagal mengirim foto dokumentasi " . ($index + 1)
                             ]);
