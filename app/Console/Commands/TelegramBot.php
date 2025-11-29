@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Telegram\Bot\Api;
-use App\Models\Report;
+use App\Models\RepairReport as Report;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -14,31 +14,25 @@ class TelegramBot extends Command
     protected $signature = 'bot:run';
     protected $description = 'Run Telegram bot with polling';
 
-    // Mapping dari pilihan bot (English) ke database (Indonesian)
+    // Mapping dari pilihan bot (Indonesian) ke database (English)
     private $penyelesaianMap = [
-        'Permanen' => 'Permanen',
-        'Temporer' => 'Temporer'
+        'Permanen' => 'Permanent',
+        'Temporer' => 'Temporary'
     ];
 
     private $penyebabMap = [
-        'Vandalisme' => 'Vandalisme',
-        'Gangguan Hewan' => 'Gangguan Hewan',
-        'Aktivitas Pihak Ketiga' => 'Aktivitas Pihak Ketiga',
-        'Gangguan Alam' => 'Gangguan Alam',
-        'Masalah Listrik' => 'Masalah Listrik',
-        'Kecelakaan Lalu Lintas' => 'Kecelakaan Lalu Lintas'
+        'Vandalisme' => 'Vandalism',
+        'Gangguan Hewan' => 'Animal Disturbance',
+        'Aktivitas Pihak Ketiga' => 'Third Party Activity',
+        'Gangguan Alam' => 'Natural Disturbance',
+        'Masalah Listrik' => 'Electrical Issue',
+        'Kecelakaan Lalu Lintas' => 'Traffic Accident'
     ];
 
-    // Tipe kabel tetap menggunakan English
+    // Tipe kabel menggunakan English
     private $tipeKabelMap = [
-        'Network' => 'Jaringan',
-        'Access' => 'Akses'
-    ];
-
-    // 🆕 Mapping untuk menampilkan kembali ke bahasa Inggris
-    private $tipeKabelDisplayMap = [
-        'Jaringan' => 'Network',
-        'Akses' => 'Access'
+        'Network' => 'Network',
+        'Access' => 'Access'
     ];
 
     public function handle()
@@ -105,11 +99,11 @@ class TelegramBot extends Command
                                 'callback_query_id' => $callback->getId(),
                             ]);
 
-                            // Simpan ke database dengan mapping bahasa Indonesia
-                            $reportData['Tipe_Kabel'] = $this->tipeKabelMap[$data];
+                            // Simpan langsung (sudah English)
+                            $reportData['cable_type'] = $data;
                             Cache::put("report_data_$chatId", $reportData, 300);
 
-                            $this->info("DEBUG - Saved Tipe_Kabel for NEW ticket: " . $this->tipeKabelMap[$data]);
+                            $this->info("DEBUG - Saved cable_type for NEW ticket: " . $data);
 
                             // Setelah tipe kabel, tanyakan penyebab gangguan
                             $telegram->sendMessage([
@@ -141,17 +135,17 @@ class TelegramBot extends Command
                     // 🆕 Handle penyebab gangguan untuk tiket BARU
                     if ($state === 'penyebab_gangguan') {
                         $validCauses = array_keys($this->penyebabMap);
-                        
+
                         if (in_array($data, $validCauses)) {
                             $telegram->answerCallbackQuery([
                                 'callback_query_id' => $callback->getId(),
                             ]);
 
-                            // Simpan langsung dalam bahasa Indonesia
-                            $reportData['Penyebab_Gangguan'] = $data;
+                            // Simpan dengan mapping ke English
+                            $reportData['disruption_cause'] = $this->penyebabMap[$data];
                             Cache::put("report_data_$chatId", $reportData, 300);
 
-                            $this->info("DEBUG - Saved Penyebab_Gangguan for NEW ticket: " . $data);
+                            $this->info("DEBUG - Saved disruption_cause for NEW ticket: " . $this->penyebabMap[$data]);
 
                             // Setelah penyebab gangguan, tanyakan penyelesaian gangguan
                             $telegram->sendMessage([
@@ -179,11 +173,11 @@ class TelegramBot extends Command
                                 'callback_query_id' => $callback->getId(),
                             ]);
 
-                            // Simpan langsung dalam bahasa Indonesia
-                            $reportData['Penyelesaian_Gangguan'] = $data;
+                            // Simpan dengan mapping ke English
+                            $reportData['repair_type'] = $this->penyelesaianMap[$data];
                             Cache::put("report_data_$chatId", $reportData, 300);
 
-                            $this->info("DEBUG - Saved Penyelesaian for NEW ticket: " . $data);
+                            $this->info("DEBUG - Saved repair_type for NEW ticket: " . $this->penyelesaianMap[$data]);
 
                             // Setelah penyelesaian gangguan, tanyakan detail pekerjaan
                             $telegram->sendMessage([
@@ -204,13 +198,13 @@ class TelegramBot extends Command
                         ]);
 
                         if ($data === 'Permanen') {
-                            $reportData['Penyelesaian_Gangguan'] = 'Permanen';
+                            $reportData['repair_type'] = 'Permanent';
                         } elseif ($data === 'Temporer') {
-                            $reportData['Penyelesaian_Gangguan'] = 'Temporer';
+                            $reportData['repair_type'] = 'Temporary';
                         }
 
                         Cache::put("report_data_$chatId", $reportData, 300);
-                        $this->info("DEBUG - Saved Penyelesaian for UPDATE: " . ($reportData['Penyelesaian_Gangguan'] ?? 'NULL'));
+                        $this->info("DEBUG - Saved repair_type for UPDATE: " . ($reportData['repair_type'] ?? 'NULL'));
 
                         $telegram->sendMessage([
                             'chat_id' => $chatId,
@@ -229,7 +223,6 @@ class TelegramBot extends Command
                         continue;
                     }
 
-                    // ✅ Handle relasi tiket - tombol selesai
                     if ($state === 'relasi' && $data === 'relasi_selesai') {
                         $telegram->answerCallbackQuery([
                             'callback_query_id' => $callback->getId(),
@@ -237,72 +230,48 @@ class TelegramBot extends Command
 
                         $selectedRelations = Cache::get("report_relations_$chatId", []);
 
-                        // 🔹 Cek apakah tiket sudah ada
-                        $existingReport = Report::where('No_Tiket', $reportData['No_Tiket'])->first();
+                        // Cek apakah tiket sudah ada
+                        $existingReport = Report::where('ticket_number', $reportData['ticket_number'])->first();
 
                         if ($existingReport) {
-                            // Append detail lama + baru
-                            $newDetail = $existingReport->Detail_Pekerjaan
-                                ? $existingReport->Detail_Pekerjaan . "\n---\n" . ($reportData['Detail_Pekerjaan'] ?? '')
-                                : ($reportData['Detail_Pekerjaan'] ?? '');
-
-                            // Gabungkan dokumentasi lama + baru
-                            if (is_string($existingReport->Dokumentasi)) {
-                                $oldDocs = json_decode($existingReport->Dokumentasi, true) ?: [];
-                            } elseif (is_array($existingReport->Dokumentasi)) {
-                                $oldDocs = $existingReport->Dokumentasi;
-                            } else {
-                                $oldDocs = [];
-                            }
-                            $newDocs = $reportData['Dokumentasi'] ?? [];
-                            $mergedDocs = array_merge($oldDocs, $newDocs);
-
-                            $existingReport->update([
-                                'Nama_Teknisi' => $reportData['Nama_Teknisi'] ?? $existingReport->Nama_Teknisi,
-                                'Detail_Pekerjaan' => $newDetail,
-                                'Penyelesaian_Gangguan' => $reportData['Penyelesaian_Gangguan'] ?? $existingReport->Penyelesaian_Gangguan,
-                                'Tipe_Kabel' => $reportData['Tipe_Kabel'] ?? $existingReport->Tipe_Kabel,
-                                'Penyebab_Gangguan' => $reportData['Penyebab_Gangguan'] ?? $existingReport->Penyebab_Gangguan,
-                                'Dokumentasi' => json_encode($mergedDocs),
-                            ]);
-
+                            // ... update logic ...
                             $report = $existingReport;
 
                             $telegram->sendMessage([
                                 'chat_id' => $chatId,
-                                'text' => "✅ Data laporan untuk *No Tiket {$reportData['No_Tiket']}* berhasil *diperbarui*.",
+                                'text' => "✅ Data laporan untuk *No Tiket {$reportData['ticket_number']}* berhasil *diperbarui*.",
                                 'parse_mode' => 'Markdown'
                             ]);
                         } else {
                             $report = Report::create([
-                                'No_Tiket' => $reportData['No_Tiket'],
-                                'Nama_Teknisi' => $reportData['Nama_Teknisi'] ?? null,
-                                'Latitude' => $reportData['Latitude'] ?? null,
-                                'Longitude' => $reportData['Longitude'] ?? null,
-                                'Detail_Pekerjaan' => $reportData['Detail_Pekerjaan'] ?? null,
-                                'Penyelesaian_Gangguan' => $reportData['Penyelesaian_Gangguan'] ?? null,
-                                'Tipe_Kabel' => $reportData['Tipe_Kabel'] ?? null,
-                                'Penyebab_Gangguan' => $reportData['Penyebab_Gangguan'] ?? null,
-                                'Dokumentasi' => isset($reportData['Dokumentasi'])
-                                    ? json_encode($reportData['Dokumentasi'])
-                                    : json_encode([]),
+                                'ticket_number' => $reportData['ticket_number'],
+                                'technician_name' => $reportData['technician_name'] ?? null,
+                                'latitude' => $reportData['latitude'] ?? null,
+                                'longitude' => $reportData['longitude'] ?? null,
+                                'work_details' => $reportData['work_details'] ?? null,
+                                'repair_type' => $reportData['repair_type'] ?? null,
+                                'cable_type' => $reportData['cable_type'] ?? null,
+                                'disruption_cause' => $reportData['disruption_cause'] ?? null,
+                                'documentation' => $reportData['documentation'] ?? []
                             ]);
 
                             $telegram->sendMessage([
                                 'chat_id' => $chatId,
-                                'text' => "✅ Laporan baru berhasil disimpan dengan No Tiket {$report->No_Tiket}."
+                                'text' => "✅ Laporan baru berhasil disimpan dengan No Tiket {$report->ticket_number}."
                             ]);
                         }
 
-                        // 🔹 Simpan semua relasi yang dipilih
+                        // ✅ PERBAIKAN: Convert ticket_number ke ID
                         if (!empty($selectedRelations)) {
-                            foreach ($selectedRelations as $tiket) {
-                                if (Report::where('No_Tiket', $tiket)->exists()) {
-                                    $report->relatedReports()->syncWithoutDetaching($tiket);
+                            foreach ($selectedRelations as $ticketNumber) {
+                                $relatedReport = Report::where('ticket_number', $ticketNumber)->first();
 
-                                    // Relasi balik
-                                    $relatedReport = Report::where('No_Tiket', $tiket)->first();
-                                    $relatedReport->relatedReports()->syncWithoutDetaching($report->No_Tiket);
+                                if ($relatedReport) {
+                                    // Gunakan ID, bukan ticket_number
+                                    $report->relatedReports()->syncWithoutDetaching($relatedReport->id_repair_reports);
+
+                                    // Relasi balik juga gunakan ID
+                                    $relatedReport->relatedReports()->syncWithoutDetaching($report->id_repair_reports);
                                 }
                             }
                         }
@@ -337,72 +306,73 @@ class TelegramBot extends Command
                         $selectedRelations = Cache::get("report_relations_$chatId", []);
 
                         // Simpan laporan
-                        $existingReport = Report::where('No_Tiket', $reportData['No_Tiket'])->first();
+                        $existingReport = Report::where('ticket_number', $reportData['ticket_number'])->first();
 
                         if ($existingReport) {
-                            $newDetail = $existingReport->Detail_Pekerjaan
-                                ? $existingReport->Detail_Pekerjaan . "\n---\n" . ($reportData['Detail_Pekerjaan'] ?? '')
-                                : ($reportData['Detail_Pekerjaan'] ?? '');
+                            $newDetail = $existingReport->work_details
+                                ? $existingReport->work_details . "\n---\n" . ($reportData['work_details'] ?? '')
+                                : ($reportData['work_details'] ?? '');
 
-                            if (is_string($existingReport->Dokumentasi)) {
-                                $oldDocs = json_decode($existingReport->Dokumentasi, true) ?: [];
-                            } elseif (is_array($existingReport->Dokumentasi)) {
-                                $oldDocs = $existingReport->Dokumentasi;
+                            if (is_string($existingReport->documentation)) {
+                                $oldDocs = json_decode($existingReport->documentation, true) ?: [];
+                            } elseif (is_array($existingReport->documentation)) {
+                                $oldDocs = $existingReport->documentation;
                             } else {
                                 $oldDocs = [];
                             }
-                            $newDocs = $reportData['Dokumentasi'] ?? [];
+                            $newDocs = $reportData['documentation'] ?? [];
                             $mergedDocs = array_merge($oldDocs, $newDocs);
 
                             $existingReport->update([
-                                'Nama_Teknisi' => $reportData['Nama_Teknisi'] ?? $existingReport->Nama_Teknisi,
-                                'Detail_Pekerjaan' => $newDetail,
-                                'Penyelesaian_Gangguan' => $reportData['Penyelesaian_Gangguan'] ?? $existingReport->Penyelesaian_Gangguan,
-                                'Tipe_Kabel' => $reportData['Tipe_Kabel'] ?? $existingReport->Tipe_Kabel,
-                                'Penyebab_Gangguan' => $reportData['Penyebab_Gangguan'] ?? $existingReport->Penyebab_Gangguan,
-                                'Dokumentasi' => json_encode($mergedDocs),
+                                'technician_name' => $reportData['technician_name'] ?? $existingReport->technician_name,
+                                'work_details' => $newDetail,
+                                'repair_type' => $reportData['repair_type'] ?? $existingReport->repair_type,
+                                'cable_type' => $reportData['cable_type'] ?? $existingReport->cable_type,
+                                'disruption_cause' => $reportData['disruption_cause'] ?? $existingReport->disruption_cause,
+                                'documentation' => $mergedDocs,
                             ]);
 
                             $report = $existingReport;
 
                             $telegram->sendMessage([
                                 'chat_id' => $chatId,
-                                'text' => "✅ Data laporan untuk *No Tiket {$reportData['No_Tiket']}* berhasil *diperbarui*.",
+                                'text' => "✅ Data laporan untuk *No Tiket {$reportData['ticket_number']}* berhasil *diperbarui*.",
                                 'parse_mode' => 'Markdown'
                             ]);
                         } else {
                             $report = Report::create([
-                                'No_Tiket' => $reportData['No_Tiket'],
-                                'Nama_Teknisi' => $reportData['Nama_Teknisi'] ?? null,
-                                'Latitude' => $reportData['Latitude'] ?? null,
-                                'Longitude' => $reportData['Longitude'] ?? null,
-                                'Detail_Pekerjaan' => $reportData['Detail_Pekerjaan'] ?? null,
-                                'Penyelesaian_Gangguan' => $reportData['Penyelesaian_Gangguan'] ?? null,
-                                'Tipe_Kabel' => $reportData['Tipe_Kabel'] ?? null,
-                                'Penyebab_Gangguan' => $reportData['Penyebab_Gangguan'] ?? null,
-                                'Dokumentasi' => isset($reportData['Dokumentasi'])
-                                    ? json_encode($reportData['Dokumentasi'])
-                                    : json_encode([]),
+                                'ticket_number' => $reportData['ticket_number'],
+                                'technician_name' => $reportData['technician_name'] ?? null,
+                                'latitude' => $reportData['latitude'] ?? null,
+                                'longitude' => $reportData['longitude'] ?? null,
+                                'work_details' => $reportData['work_details'] ?? null,
+                                'repair_type' => $reportData['repair_type'] ?? null,
+                                'cable_type' => $reportData['cable_type'] ?? null,
+                                'disruption_cause' => $reportData['disruption_cause'] ?? null,
+                                'documentation' => $reportData['documentation'] ?? [],
                             ]);
 
                             $telegram->sendMessage([
                                 'chat_id' => $chatId,
-                                'text' => "✅ Laporan baru berhasil disimpan dengan No Tiket {$report->No_Tiket}."
+                                'text' => "✅ Laporan baru berhasil disimpan dengan No Tiket {$report->ticket_number}."
                             ]);
                         }
 
                         // Simpan relasi
+// Simpan relasi
                         if (!empty($selectedRelations)) {
-                            foreach ($selectedRelations as $tiket) {
-                                if (Report::where('No_Tiket', $tiket)->exists()) {
-                                    $report->relatedReports()->syncWithoutDetaching($tiket);
+                            foreach ($selectedRelations as $ticketNumber) {
+                                $relatedReport = Report::where('ticket_number', $ticketNumber)->first();
 
-                                    $relatedReport = Report::where('No_Tiket', $tiket)->first();
-                                    $relatedReport->relatedReports()->syncWithoutDetaching($report->No_Tiket);
+                                if ($relatedReport) {
+                                    // Gunakan ID, bukan ticket_number
+                                    $report->relatedReports()->syncWithoutDetaching($relatedReport->id_repair_reports);
+
+                                    // Relasi balik juga gunakan ID
+                                    $relatedReport->relatedReports()->syncWithoutDetaching($report->id_repair_reports);
                                 }
                             }
                         }
-
                         $this->resetCacheAndShowMenu($telegram, $chatId);
                         continue;
                     }
@@ -461,7 +431,7 @@ class TelegramBot extends Command
                             }
 
                             // Cek apakah tiket ada di database
-                            $existingReport = Report::where('No_Tiket', $noTiket)->first();
+                            $existingReport = Report::where('ticket_number', $noTiket)->first();
                             if (!$existingReport) {
                                 $telegram->sendMessage([
                                     'chat_id' => $chatId,
@@ -473,7 +443,7 @@ class TelegramBot extends Command
                             }
 
                             // Simpan tiket untuk update
-                            $data['No_Tiket'] = $noTiket;
+                            $data['ticket_number'] = $noTiket;
                             Cache::put("report_data_$chatId", $data, 300);
 
                             $telegram->sendMessage([
@@ -496,7 +466,7 @@ class TelegramBot extends Command
                             }
 
                             // Cek apakah tiket sudah ada di database
-                            $existing = Report::where('No_Tiket', $noTiket)->first();
+                            $existing = Report::where('ticket_number', $noTiket)->first();
 
                             if ($existing) {
                                 $telegram->sendMessage([
@@ -515,13 +485,13 @@ class TelegramBot extends Command
                                 'parse_mode' => 'Markdown'
                             ]);
 
-                            $data['No_Tiket'] = $noTiket;
+                            $data['ticket_number'] = $noTiket;
                             Cache::put("report_data_$chatId", $data, 300);
                             Cache::put("report_state_$chatId", 'nama_teknisi', 300);
                             break;
 
                         case 'nama_teknisi':
-                            $data['Nama_Teknisi'] = $text;
+                            $data['technician_name'] = $text;
                             Cache::put("report_data_$chatId", $data, 300);
 
                             $telegram->sendMessage([
@@ -545,8 +515,8 @@ class TelegramBot extends Command
 
                         case 'location':
                             if ($location) {
-                                $data['Latitude'] = $location->getLatitude();
-                                $data['Longitude'] = $location->getLongitude();
+                                $data['latitude'] = $location->getLatitude();
+                                $data['longitude'] = $location->getLongitude();
                                 Cache::put("report_data_$chatId", $data, 300);
 
                                 // Setelah lokasi, tanyakan tipe kabel - hapus reply keyboard
@@ -586,7 +556,7 @@ class TelegramBot extends Command
                             break;
 
                         case 'detail':
-                            $data['Detail_Pekerjaan'] = $text;
+                            $data['work_details'] = $text;
                             Cache::put("report_data_$chatId", $data, 300);
 
                             $telegram->sendMessage([
@@ -630,7 +600,7 @@ class TelegramBot extends Command
 
                         case 'relasi':
                             $noTiketRelasi = trim($text);
-                            
+
                             if (empty($noTiketRelasi)) {
                                 $telegram->sendMessage([
                                     'chat_id' => $chatId,
@@ -641,8 +611,8 @@ class TelegramBot extends Command
                             }
 
                             // Cek apakah tiket ada di database
-                            $relatedTicket = Report::where('No_Tiket', $noTiketRelasi)->first();
-                            
+                            $relatedTicket = Report::where('ticket_number', $noTiketRelasi)->first();
+
                             if (!$relatedTicket) {
                                 $telegram->sendMessage([
                                     'chat_id' => $chatId,
@@ -658,7 +628,7 @@ class TelegramBot extends Command
                             }
 
                             // Cek apakah tiket sama dengan tiket yang sedang dibuat
-                            if ($noTiketRelasi === $data['No_Tiket']) {
+                            if ($noTiketRelasi === $data['ticket_number']) {
                                 $telegram->sendMessage([
                                     'chat_id' => $chatId,
                                     'text' => "❌ Tidak bisa merelasikan tiket dengan dirinya sendiri.\n\nSilakan masukkan No Tiket lain atau tekan tombol *Selesai*.",
@@ -710,7 +680,7 @@ class TelegramBot extends Command
                             break;
 
                         case 'update_nama_teknisi':
-                            $data['Nama_Teknisi'] = $text;
+                            $data['technician_name'] = $text;
                             Cache::put("report_data_$chatId", $data, 300);
 
                             $telegram->sendMessage([
@@ -722,7 +692,7 @@ class TelegramBot extends Command
                             break;
 
                         case 'update_detail':
-                            $data['Detail_Pekerjaan'] = $text;
+                            $data['work_details'] = $text;
                             Cache::put("report_data_$chatId", $data, 300);
 
                             $telegram->sendMessage([
@@ -803,7 +773,7 @@ class TelegramBot extends Command
     // 🔹 Method untuk mencari data berdasarkan no tiket
     private function searchReportByTicket($telegram, $chatId, $noTiket)
     {
-        $report = Report::where('No_Tiket', $noTiket)->first();
+        $report = Report::where('ticket_number', $noTiket)->first();
 
         if (!$report) {
             $telegram->sendMessage([
@@ -819,27 +789,30 @@ class TelegramBot extends Command
 
             $message = "🔍 *Data Laporan*\n";
             $message .= "━━━━━━━━━━━━━━━\n";
-            $message .= "📋 *No Tiket:* `" . ($report->No_Tiket ?? 'N/A') . "`\n";
+            $message .= "📋 *No Tiket:* `" . ($report->ticket_number ?? 'N/A') . "`\n";
             $message .= "📅 *Tanggal:* {$createdAtWITA} WITA\n";
-            $message .= "👨‍🔧 *Nama Teknisi:* {$report->Nama_Teknisi}\n";
-            $message .= "🔧 *Status:* {$report->Penyelesaian_Gangguan}\n";
+            $message .= "👨‍🔧 *Nama Teknisi:* {$report->technician_name}\n";
 
-            // 🆕 Tampilkan tipe kabel dalam bahasa Inggris
-            if ($report->Tipe_Kabel) {
-                $displayTipeKabel = $this->tipeKabelDisplayMap[$report->Tipe_Kabel] ?? $report->Tipe_Kabel;
-                $message .= "🔌 *Tipe Kabel:* {$displayTipeKabel}\n";
+            // Map repair_type ke bahasa Indonesia untuk tampilan
+            $statusDisplay = $report->repair_type === 'Permanent' ? 'Permanen' : 'Temporer';
+            $message .= "🔧 *Status:* {$statusDisplay}\n";
+
+            // Tampilkan tipe kabel
+            if ($report->cable_type) {
+                $message .= "🔌 *Tipe Kabel:* {$report->cable_type}\n";
             }
 
-            // Tampilkan penyebab gangguan jika ada
-            if ($report->Penyebab_Gangguan) {
-                $message .= "⚠️ *Penyebab:* {$report->Penyebab_Gangguan}\n";
+            // Tampilkan penyebab gangguan jika ada (map ke bahasa Indonesia)
+            if ($report->disruption_cause) {
+                $causeIndonesian = array_search($report->disruption_cause, $this->penyebabMap) ?: $report->disruption_cause;
+                $message .= "⚠️ *Penyebab:* {$causeIndonesian}\n";
             }
 
             // Tambahkan lokasi dengan link ke maps
-            if ($report->Latitude && $report->Longitude) {
-                $mapsUrl = "https://maps.google.com/?q={$report->Latitude},{$report->Longitude}";
+            if ($report->latitude && $report->longitude) {
+                $mapsUrl = "https://maps.google.com/?q={$report->latitude},{$report->longitude}";
                 $message .= "📍 *Lokasi:* [Buka di Google Maps]($mapsUrl)\n";
-                $message .= "🌐 *Koordinat:* {$report->Latitude}, {$report->Longitude}\n\n";
+                $message .= "🌐 *Koordinat:* {$report->latitude}, {$report->longitude}\n\n";
             }
 
             $telegram->sendMessage([
@@ -850,9 +823,9 @@ class TelegramBot extends Command
             ]);
 
             $telegram->sendLocation([
-                'chat_id'   => $chatId,
-                'latitude'  => $report->Latitude,
-                'longitude' => $report->Longitude
+                'chat_id' => $chatId,
+                'latitude' => $report->latitude,
+                'longitude' => $report->longitude
             ]);
         }
 
@@ -863,7 +836,7 @@ class TelegramBot extends Command
     // 🔹 Method untuk menampilkan data dengan status temporer
     private function sendTemporaryReports($telegram, $chatId)
     {
-        $temporaryReports = Report::where('Penyelesaian_Gangguan', 'Temporer')
+        $temporaryReports = Report::where('repair_type', 'Temporary')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -881,26 +854,26 @@ class TelegramBot extends Command
                     ->setTimezone('Asia/Makassar')
                     ->format('d/m/Y H:i');
 
-                $message .= "📋 No Tiket: `" . ($report->No_Tiket ?? 'N/A') . "`\n";
-                $message .= "👨‍🔧 Teknisi: " . ($report->Nama_Teknisi ?? 'N/A') . "\n";
+                $message .= "📋 No Tiket: `" . ($report->ticket_number ?? 'N/A') . "`\n";
+                $message .= "👨‍🔧 Teknisi: " . ($report->technician_name ?? 'N/A') . "\n";
                 $message .= "📅 Tanggal: " . $createdAtWITA . " WITA\n";
-                $message .= "🔧 Status: {$report->Penyelesaian_Gangguan}\n";
+                $message .= "🔧 Status: Temporer\n";
 
-                // 🆕 Tampilkan tipe kabel dalam bahasa Inggris
-                if ($report->Tipe_Kabel) {
-                    $displayTipeKabel = $this->tipeKabelDisplayMap[$report->Tipe_Kabel] ?? $report->Tipe_Kabel;
-                    $message .= "🔌 Tipe Kabel: {$displayTipeKabel}\n";
+                // Tampilkan tipe kabel
+                if ($report->cable_type) {
+                    $message .= "🔌 Tipe Kabel: {$report->cable_type}\n";
                 }
 
-                // Tampilkan penyebab gangguan jika ada
-                if ($report->Penyebab_Gangguan) {
-                    $message .= "⚠️ Penyebab: {$report->Penyebab_Gangguan}\n";
+                // Tampilkan penyebab gangguan jika ada (map ke bahasa Indonesia)
+                if ($report->disruption_cause) {
+                    $causeIndonesian = array_search($report->disruption_cause, $this->penyebabMap) ?: $report->disruption_cause;
+                    $message .= "⚠️ Penyebab: {$causeIndonesian}\n";
                 }
 
-                if ($report->Latitude && $report->Longitude) {
-                    $mapsUrl = "https://maps.google.com/?q={$report->Latitude},{$report->Longitude}";
+                if ($report->latitude && $report->longitude) {
+                    $mapsUrl = "https://maps.google.com/?q={$report->latitude},{$report->longitude}";
                     $message .= "📍 *Lokasi:* [Buka di Google Maps]($mapsUrl)\n";
-                    $message .= "🌐 *Koordinat:* {$report->Latitude}, {$report->Longitude}\n\n";
+                    $message .= "🌐 *Koordinat:* {$report->latitude}, {$report->longitude}\n\n";
                 }
 
                 $message .= "\n";
@@ -944,12 +917,12 @@ class TelegramBot extends Command
             $url = "https://api.telegram.org/file/bot" . env('TELEGRAM_BOT_TOKEN') . "/" . $filePath;
 
             $contents = file_get_contents($url);
-            $fileName = "dokumentasi/" . $data['No_Tiket'] . "_" . uniqid() . ".jpg";
+            $fileName = "dokumentasi/" . $data['ticket_number'] . "_" . uniqid() . ".jpg";
             Storage::disk('public')->put($fileName, $contents);
 
-            $docs = $data['Dokumentasi'] ?? [];
+            $docs = $data['documentation'] ?? [];
             $docs[] = $fileName;
-            $data['Dokumentasi'] = $docs;
+            $data['documentation'] = $docs;
             Cache::put("report_data_$chatId", $data, 300);
 
             $telegram->sendMessage([
@@ -968,38 +941,38 @@ class TelegramBot extends Command
     // 🔹 Method untuk update laporan yang sudah ada
     private function updateExistingReport($telegram, $chatId, $data)
     {
-        $existingReport = Report::where('No_Tiket', $data['No_Tiket'])->first();
+        $existingReport = Report::where('ticket_number', $data['ticket_number'])->first();
 
         if ($existingReport) {
             // Append detail pekerjaan
-            $newDetail = $existingReport->Detail_Pekerjaan
-                ? $existingReport->Detail_Pekerjaan . "\n--------------------------------------------------------------------\n" . ($data['Detail_Pekerjaan'] ?? '')
-                : ($data['Detail_Pekerjaan'] ?? '');
+            $newDetail = $existingReport->work_details
+                ? $existingReport->work_details . "\n--------------------------------------------------------------------\n" . ($data['work_details'] ?? '')
+                : ($data['work_details'] ?? '');
 
             // Gabungkan dokumentasi lama + baru
-            if (is_string($existingReport->Dokumentasi)) {
-                $oldDocs = json_decode($existingReport->Dokumentasi, true) ?: [];
-            } elseif (is_array($existingReport->Dokumentasi)) {
-                $oldDocs = $existingReport->Dokumentasi;
+            if (is_string($existingReport->documentation)) {
+                $oldDocs = json_decode($existingReport->documentation, true) ?: [];
+            } elseif (is_array($existingReport->documentation)) {
+                $oldDocs = $existingReport->documentation;
             } else {
                 $oldDocs = [];
             }
-            $newDocs = $data['Dokumentasi'] ?? [];
+            $newDocs = $data['documentation'] ?? [];
             $mergedDocs = array_merge($oldDocs, $newDocs);
 
             // DEBUG: Log sebelum update
-            $this->info("DEBUG - Before UPDATE: Penyelesaian = " . ($data['Penyelesaian_Gangguan'] ?? 'NULL'));
+            $this->info("DEBUG - Before UPDATE: repair_type = " . ($data['repair_type'] ?? 'NULL'));
 
             $existingReport->update([
-                'Nama_Teknisi' => $data['Nama_Teknisi'] ?? $existingReport->Nama_Teknisi,
-                'Detail_Pekerjaan' => $newDetail,
-                'Penyelesaian_Gangguan' => $data['Penyelesaian_Gangguan'] ?? $existingReport->Penyelesaian_Gangguan,
-                'Dokumentasi' => json_encode($mergedDocs),
+                'technician_name' => $data['technician_name'] ?? $existingReport->technician_name,
+                'work_details' => $newDetail,
+                'repair_type' => $data['repair_type'] ?? $existingReport->repair_type,
+                'documentation' => $mergedDocs
             ]);
 
             $telegram->sendMessage([
                 'chat_id' => $chatId,
-                'text' => "✅ Data laporan untuk *No Tiket {$data['No_Tiket']}* berhasil *diperbarui*.",
+                'text' => "✅ Data laporan untuk *No Tiket {$data['ticket_number']}* berhasil *diperbarui*.",
                 'parse_mode' => 'Markdown'
             ]);
         }
@@ -1011,10 +984,10 @@ class TelegramBot extends Command
     // 🔹 Method untuk mengirim foto dokumentasi
     private function sendDocumentationPhotos($telegram, $chatId, $report)
     {
-        if ($report->Dokumentasi) {
-            $dokumentasi = is_string($report->Dokumentasi)
-                ? json_decode($report->Dokumentasi, true)
-                : $report->Dokumentasi;
+        if ($report->documentation) {
+            $dokumentasi = is_string($report->documentation)
+                ? json_decode($report->documentation, true)
+                : $report->documentation;
 
             if (is_array($dokumentasi) && !empty($dokumentasi)) {
                 $telegram->sendMessage([

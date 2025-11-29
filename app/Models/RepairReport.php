@@ -24,7 +24,7 @@ class RepairReport extends Model
     ];
 
     protected $casts = [
-        'documentation' => 'array', // Auto JSON encode/decode
+        'documentation' => 'array', 
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
     ];
@@ -50,4 +50,6 @@ class RepairReport extends Model
             'repair_report_id'               // foreign key untuk report utama
         );
     }
+
+    
 }
