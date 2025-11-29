@@ -8,10 +8,12 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\SiteReportController;
 use App\Http\Controllers\SiteMapController;
+use App\Http\Controllers\TelegramWebhookController;
 
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
 
 Route::middleware('auth')->group(function () {
 
