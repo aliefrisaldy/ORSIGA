@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('site-reports/bulk-delete', [SiteReportController::class, 'bulkDelete'])->name('site-reports.bulk-delete');
 
     //Sites Punya
+    Route::get('/sites/export-csv', [SiteController::class, 'exportCsv'])->name('sites.export-csv');
     Route::get('/sites/search', [SiteController::class, 'searchSuggestions'])->name('sites.search');
     Route::resource('sites', SiteController::class);
 

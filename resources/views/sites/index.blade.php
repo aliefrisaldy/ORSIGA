@@ -39,15 +39,38 @@
                         </div>
                     </div>
 
+                    <div class="relative">
+                        <input type="date" id="dateFrom"
+                        class="block w-40 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        placeholder="From Date">
+                    </div>
+
+                    <div class="relative">
+                        <input type="date" id="dateTo"
+                        class="block w-40 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        placeholder="To Date">
+                    </div>
+
+                    <button type="button" id="clearDateFilter"
+                        class="inline-flex items-center justify-center w-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+                        title="Clear Date Filter">
+                        <i class="fas fa-times"></i>
+                    </button>
+
                     <div class="flex items-center gap-1 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg px-3 py-2">
                         <i class="fas fa-map-marker-alt text-red-500"></i>
                         <span class="font-medium" id="sitesCounter">{{ $sites->total() }}</span>
-                        <span>sites found</span>
                     </div>
                 </div>
 
+                <button type="button" id="exportCsvBtn"
+                    class="inline-flex items-center justify-center w-30 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200">
+                    <i class="fas fa-file-csv mr-1"></i>
+                    Export CSV
+                </button>
+
                 <a href="{{ route('sites.create') }}"
-                    class="inline-flex items-center px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200">
+                    class="inline-flex items-center px-3 w-30 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200">
                     <i class="fas fa-plus mr-2"></i>
                     Add Site
                 </a>
@@ -249,8 +272,65 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchResults = document.getElementById('searchResults');
     const resultsList = document.getElementById('resultsList');
     const noResults = document.getElementById('noResults');
+    const siteRows = document.querySelectorAll('.site-row');
+    const sitesCounter = document.getElementById('sitesCounter');
+    
+    const dateFrom = document.getElementById('dateFrom');
+    const dateTo = document.getElementById('dateTo');
+    const clearDateFilter = document.getElementById('clearDateFilter');
+    const exportCsvBtn = document.getElementById('exportCsvBtn');
     
     let debounceTimer;
+    let currentDateFrom = '';
+    let currentDateTo = '';
+
+    // Load filter values from URL on page load
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (urlParams.has('search')) {
+        searchInput.value = urlParams.get('search');
+    }
+    
+    if (urlParams.has('date_from')) {
+        dateFrom.value = urlParams.get('date_from');
+        currentDateFrom = urlParams.get('date_from');
+    }
+    
+    if (urlParams.has('date_to')) {
+        dateTo.value = urlParams.get('date_to');
+        currentDateTo = urlParams.get('date_to');
+    }
+
+    // Date Filter Event Listeners - Update URL
+    dateFrom.addEventListener('change', function() {
+        currentDateFrom = this.value;
+        updateURLWithFilters();
+    });
+
+    dateTo.addEventListener('change', function() {
+        currentDateTo = this.value;
+        updateURLWithFilters();
+    });
+
+    clearDateFilter.addEventListener('click', function() {
+        dateFrom.value = '';
+        dateTo.value = '';
+        currentDateFrom = '';
+        currentDateTo = '';
+        updateURLWithFilters();
+    });
+
+    // Export CSV Functionality
+    exportCsvBtn.addEventListener('click', function() {
+        const params = new URLSearchParams();
+        
+        const searchTerm = searchInput.value.trim();
+        if (searchTerm) params.append('search', searchTerm);
+        if (currentDateFrom) params.append('date_from', currentDateFrom);
+        if (currentDateTo) params.append('date_to', currentDateTo);
+        
+        window.location.href = '/sites/export-csv?' + params.toString();
+    });
 
     // Close dropdown when clicking outside
     document.addEventListener('click', function(e) {
@@ -259,10 +339,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Show dropdown on focus if there's text
+    // Show dropdown on focus
     searchInput.addEventListener('focus', function() {
-        if (this.value.trim() !== '') {
-            searchResults.classList.remove('hidden');
+        const searchTerm = this.value.trim();
+        if (searchTerm !== '') {
+            fetchSearchResults(searchTerm);
         }
     });
 
@@ -274,14 +355,33 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (searchTerm === '') {
             searchResults.classList.add('hidden');
+            // Clear search and reload
+            debounceTimer = setTimeout(() => {
+                updateURLWithFilters();
+            }, 500);
             return;
         }
         
-        // Debounce AJAX call for dropdown
+        // Debounce AJAX call for dropdown and filter
         debounceTimer = setTimeout(() => {
             fetchSearchResults(searchTerm);
-        }, 300);
+            updateURLWithFilters();
+        }, 500);
     });
+
+    // Update URL with all filters
+    function updateURLWithFilters() {
+        const params = new URLSearchParams();
+        
+        const searchTerm = searchInput.value.trim();
+        if (searchTerm) params.append('search', searchTerm);
+        if (dateFrom.value) params.append('date_from', dateFrom.value);
+        if (dateTo.value) params.append('date_to', dateTo.value);
+        
+        // Reload page with filters
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        window.location.href = newUrl;
+    }
 
     // Fetch search results via AJAX
     function fetchSearchResults(searchTerm) {
