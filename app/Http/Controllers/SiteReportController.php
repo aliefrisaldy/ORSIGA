@@ -7,6 +7,8 @@ use App\Models\SiteReport;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\DB;
 
 class SiteReportController extends Controller
 {
@@ -14,6 +16,16 @@ class SiteReportController extends Controller
     {
         $query = SiteReport::with('site');
 
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('site', function ($q) use ($search) {
+                $q->where('site_id', 'like', "%$search%")
+                    ->orWhere('site_name', 'like', "%$search%");
+            })->orWhere('ticket_number', 'like', "%$search%");
+        }
+
+        // Status filter
         if ($request->filled('status')) {
             if ($request->status === 'Open') {
                 $query->open();
@@ -22,27 +34,105 @@ class SiteReportController extends Controller
             }
         }
 
-        if ($request->filled('ticket_number')) {
-            $query->byTicket($request->ticket_number);
+        // Date from filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
         }
 
-        // Search by site
+        // Date to filter
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $reports = $query->latest()->paginate(20); // Ubah dari get() ke paginate(20)
+
+        return view('site-reports.index', compact('reports'));
+    }
+
+    public function exportCsv(Request $request)
+    {
+        $query = SiteReport::with('site');
+
+        // Apply same filters as index
         if ($request->filled('search')) {
             $search = $request->search;
             $query->whereHas('site', function ($q) use ($search) {
                 $q->where('site_id', 'like', "%$search%")
                     ->orWhere('site_name', 'like', "%$search%");
-            });
+            })->orWhere('ticket_number', 'like', "%$search%");
         }
 
-        $reports = $query->latest()->paginate(20);
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
-        return view('site-reports.index', compact('reports'));
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $reports = $query->latest()->get();
+
+        // Generate CSV
+        $filename = 'site_reports_' . date('Y-m-d_His') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($reports) {
+            $file = fopen('php://output', 'w');
+
+            // Add BOM for UTF-8 Excel compatibility
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // CSV Headers
+            fputcsv($file, [
+                'No',
+                'Ticket Number',
+                'Site ID',
+                'Site Name',
+                'Latitude',
+                'Longitude',
+                'Status',
+                'Opened At',
+                'Closed At',
+                'Duration (Hours)'
+            ]);
+
+            // CSV Data
+            foreach ($reports as $index => $report) {
+                $duration = '';
+                if ($report->status === 'Close' && $report->created_at && $report->updated_at) {
+                    $hours = $report->created_at->diffInHours($report->updated_at);
+                    $duration = number_format($hours, 2);
+                }
+
+                fputcsv($file, [
+                    $index + 1,
+                    $report->ticket_number,
+                    $report->site->site_id ?? 'N/A',
+                    $report->site->site_name ?? 'N/A',
+                    $report->site->latitude ?? 'N/A',
+                    $report->site->longitude ?? 'N/A',
+                    $report->status,
+                    $report->created_at->timezone('Asia/Makassar')->format('Y-m-d H:i:s'),
+                    $report->status === 'Close' ? $report->updated_at->timezone('Asia/Makassar')->format('Y-m-d H:i:s') : '-',
+                    $duration ?: '-'
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return Response::stream($callback, 200, $headers);
     }
 
     public function create(): View
     {
-        // PERBAIKAN: Tambahkan latitude dan longitude
         $sites = Site::orderBy('site_name')->get(['id', 'site_id', 'site_name', 'latitude', 'longitude']);
 
         return view('site-reports.create', compact('sites'));
@@ -57,7 +147,7 @@ class SiteReportController extends Controller
             'ticket_number' => 'Ticket Number',
             'site_id' => 'Site',
         ]);
-        
+
         SiteReport::create($validated);
 
         return redirect()->route('site-reports.index')
@@ -73,7 +163,6 @@ class SiteReportController extends Controller
 
     public function edit(SiteReport $siteReport): View
     {
-        // PERBAIKAN: Tambahkan latitude dan longitude
         $sites = Site::orderBy('site_name')->get(['id', 'site_id', 'site_name', 'latitude', 'longitude']);
 
         return view('site-reports.edit', compact('siteReport', 'sites'));

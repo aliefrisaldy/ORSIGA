@@ -24,10 +24,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/city-data', [DashboardController::class, 'getCityData'])->name('dashboard.city-data');
 
     //Repair Reports Punya
+    Route::get('/reports/export-csv', [ReportController::class, 'exportCsv'])->name('reports.export-csv');
     Route::get('/reports/search-suggestions', [ReportController::class, 'searchSuggestions'])->name('reports.search-suggestions');
     Route::resource('reports', ReportController::class);
+    
 
     //Site Reports Punya
+    Route::get('/site-reports/export-csv', [SiteReportController::class, 'exportCsv'])->name('site-reports.export-csv');
     Route::resource('site-reports', SiteReportController::class);
     Route::post('site-reports/{siteReport}/close', [SiteReportController::class, 'close'])->name('site-reports.close');
     Route::post('site-reports/{siteReport}/reopen', [SiteReportController::class, 'reopen'])->name('site-reports.reopen');

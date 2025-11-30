@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -14,15 +16,118 @@ class ReportController extends Controller
     {
         $query = RepairReport::query();
 
+        // Search filter
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where('ticket_number', 'like', "%$search%")
-                  ->orWhere('technician_name', 'like', "%$search%");
+            $query->where(function ($q) use ($search) {
+                $q->where('ticket_number', 'like', "%$search%")
+                    ->orWhere('technician_name', 'like', "%$search%");
+            });
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
         }
 
-        $reports = $query->with('relatedReports')->get();
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        if ($request->filled('repair_type')) {
+            $query->where('repair_type', $request->repair_type);
+        }
+
+        // Cable type filter
+        if ($request->filled('cable_type')) {
+            $query->where('cable_type', $request->cable_type);
+        }
+
+        $reports = $query->with('relatedReports')->orderBy('created_at', 'desc')->get();
 
         return view('reports.index', compact('reports'));
+    }
+
+    public function exportCsv(Request $request)
+    {
+        $query = RepairReport::query();
+
+        // Apply same filters as index
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('ticket_number', 'like', "%$search%")
+                    ->orWhere('technician_name', 'like', "%$search%");
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->where(DB::raw('DATE(created_at)'), '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->where(DB::raw('DATE(created_at)'), '<=', $request->date_to);
+        }
+
+        if ($request->filled('repair_type')) {
+            $query->where('repair_type', $request->repair_type);
+        }
+
+        if ($request->filled('cable_type')) {
+            $query->where('cable_type', $request->cable_type);
+        }
+
+        $reports = $query->with('relatedReports')->orderBy('created_at', 'desc')->get();
+
+        // Generate CSV
+        $filename = 'repair_reports_' . date('Y-m-d_His') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($reports) {
+            $file = fopen('php://output', 'w');
+
+            // Add BOM for UTF-8 Excel compatibility
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // CSV Headers
+            fputcsv($file, [
+                'No',
+                'Ticket Number',
+                'Technician Name',
+                'Latitude',
+                'Longitude',
+                'Repair Type',
+                'Cable Type',
+                'Cause of Disruption',
+                'Work Details',
+                'Has Documentation',
+                'Related Reports Count',
+                'Created At'
+            ]);
+
+            // CSV Data
+            foreach ($reports as $index => $report) {
+                fputcsv($file, [
+                    $index + 1,
+                    $report->ticket_number,
+                    $report->technician_name,
+                    $report->latitude,
+                    $report->longitude,
+                    $report->repair_type ?? 'N/A',
+                    $report->cable_type ?? 'N/A',
+                    $report->disruption_cause ?? 'N/A',
+                    $report->work_details ?? 'None',
+                    $report->documentation ? 'Yes' : 'No',
+                    $report->relatedReports->count(),
+                    $report->created_at->timezone('Asia/Makassar')->format('Y-m-d H:i:s')
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return Response::stream($callback, 200, $headers);
     }
 
     public function create(): View
@@ -69,7 +174,7 @@ class ReportController extends Controller
             }
         }
 
-        $validated['documentation'] = $documentationPaths; // Array otomatis di-cast ke JSON oleh model
+        $validated['documentation'] = $documentationPaths;
 
         $report = RepairReport::create($validated);
 
@@ -77,7 +182,6 @@ class ReportController extends Controller
         if ($request->has('related_reports') && is_array($request->related_reports)) {
             $report->relatedReports()->sync($request->related_reports);
 
-            // Buat relasi dua arah
             foreach ($request->related_reports as $relatedReportId) {
                 $relatedReport = RepairReport::find($relatedReportId);
                 if ($relatedReport) {
@@ -101,10 +205,8 @@ class ReportController extends Controller
 
     public function edit(RepairReport $report): View
     {
-        // Ambil ID report yang sudah berelasi
         $relatedIds = $report->relatedReports->pluck('id_repair_reports')->toArray();
 
-        // Filter: hanya ambil report yang bukan dirinya dan belum berelasi
         $existingReports = RepairReport::where('id_repair_reports', '!=', $report->id_repair_reports)
             ->whereNotIn('id_repair_reports', $relatedIds)
             ->get();
@@ -135,10 +237,8 @@ class ReportController extends Controller
 
         $data = $request->except(['documentation', 'related_reports', 'remove_images']);
 
-        // Handle existing images
         $existingImages = $report->documentation ?? [];
 
-        // Remove selected images
         if ($request->has('remove_images') && is_array($request->remove_images)) {
             foreach ($request->remove_images as $imageToRemove) {
                 if (($key = array_search($imageToRemove, $existingImages)) !== false) {
@@ -151,7 +251,6 @@ class ReportController extends Controller
             $existingImages = array_values($existingImages);
         }
 
-        // Add new images
         if ($request->hasFile('documentation')) {
             $newImagePaths = [];
             foreach ($request->file('documentation') as $file) {
@@ -164,16 +263,13 @@ class ReportController extends Controller
 
         $report->update($data);
 
-        // Handle related reports
         $oldRelations = $report->relatedReports()->pluck('id_repair_reports')->toArray();
 
         if ($request->has('related_reports') && is_array($request->related_reports)) {
             $newRelations = $request->related_reports;
 
-            // Sync tanpa detaching yang sudah ada
             $report->relatedReports()->syncWithoutDetaching($newRelations);
 
-            // Hapus relasi yang di-remove user
             $removedRelations = array_diff($oldRelations, $newRelations);
             foreach ($removedRelations as $removedReportId) {
                 $removedReport = RepairReport::find($removedReportId);
@@ -182,7 +278,6 @@ class ReportController extends Controller
                 }
             }
 
-            // Pastikan relasi dua arah
             foreach ($newRelations as $relatedReportId) {
                 $relatedReport = RepairReport::find($relatedReportId);
                 if ($relatedReport) {
@@ -200,7 +295,6 @@ class ReportController extends Controller
 
     public function destroy(RepairReport $report): RedirectResponse
     {
-        // Delete documentation files
         if ($report->documentation && is_array($report->documentation)) {
             foreach ($report->documentation as $imagePath) {
                 if (Storage::disk('public')->exists($imagePath)) {
@@ -209,10 +303,9 @@ class ReportController extends Controller
             }
         }
 
-        // Detach all relations
         $report->relatedReports()->detach();
         $report->reportsRelatedTo()->detach();
-        
+
         $report->delete();
 
         return redirect()->route('reports.index')
