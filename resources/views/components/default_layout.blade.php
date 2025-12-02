@@ -30,11 +30,11 @@
             const style = document.createElement('style');
             style.innerHTML = `
                 .main-content-preload {
-                    margin-left: ${isCollapsed ? '80px' : '243px'} !important;
+                    margin-left: ${isCollapsed ? '80px' : '255px'} !important;
                     transition: none !important;
                 }
                 .sidebar-preload {
-                    width: ${isCollapsed ? '80px' : '243px'} !important;
+                    width: ${isCollapsed ? '80px' : '255px'} !important;
                     transition: none !important;
                 }
                 @media (max-width: 768px) {
@@ -113,7 +113,7 @@
         }
 
         .sidebar-expanded {
-            width: 243px !important;
+            width: 255px !important;
         }
 
         /* Enhanced text animations */
@@ -493,7 +493,7 @@
 
                 <a href="{{ route('site-reports.index') }}"
                     class="relative flex items-center flex-nowrap py-3 px-3 rounded-lg text-gray-700 transition-all duration-200 menu-item {{ request()->routeIs('site-reports.*') ? 'menu-active text-white' : '' }}">
-                    <div class="sidebar-icon mr-1">
+                    <div class="sidebar-icon mr-3">
                         <i class="fas fa-clipboard-list"></i>
                     </div>
 
@@ -593,7 +593,7 @@
         <!-- Main Content -->
         <!-- Added preload classes and improved transition -->
         <div class="flex flex-col min-h-screen main-content-transition main-content-preload"
-            :style="`margin-left: ${sidebarCollapsed ? '80px' : '243px'}`"
+            :style="`margin-left: ${sidebarCollapsed ? '80px' : '255px'}`"
             x-bind:class="{ 'md:ml-20': sidebarCollapsed, 'md:ml-70': !sidebarCollapsed }">
 
             <!-- Top Navigation Bar -->
