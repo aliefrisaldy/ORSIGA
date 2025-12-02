@@ -12,6 +12,8 @@ class SiteReport extends Model
         'ticket_number',
         'site_id',
         'status',
+        'headline',
+        'progress',
     ];
 
     protected $casts = [

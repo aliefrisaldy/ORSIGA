@@ -192,6 +192,8 @@
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Ticket Number</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Headline</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Site ID</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Site Name</th>
@@ -199,6 +201,8 @@
                                     Location</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Status</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Progress</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Opened At</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -216,6 +220,9 @@
                                         {{ $index + 1 }}</td>
                                     <td class="px-6 py-4 text-center whitespace-nowrap">
                                         <div class="text-sm font-medium text-gray-900">{{ $report->ticket_number }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <div class="text-sm text-gray-900 max-w-xs mx-auto">{{ $report->headline ?? '-' }}</div>
                                     </td>
                                     <td class="px-6 py-4 text-center whitespace-nowrap">
                                         <div class="text-sm text-gray-900">{{ $report->site->site_id ?? 'N/A' }}</div>
@@ -249,6 +256,19 @@
                                                 <i class="fas fa-question mr-1"></i>
                                                 N/A
                                             </span>
+                                        @endif
+                                    </td>
+                                    </td>
+                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        @if($report->progress)
+                                            <span class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 rounded-md">
+                                                <i class="fas fa-file-alt mr-2"></i>
+                                                Progress Available
+                                            </span>
+                                        @else
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                None
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-center whitespace-nowrap text-sm text-gray-500">

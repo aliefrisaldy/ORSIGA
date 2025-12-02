@@ -29,6 +29,19 @@
                     @enderror
                 </div>
 
+                <div>
+                    <label for="headline" class="block text-sm font-medium text-gray-700 mb-2">
+                        Headline
+                    </label>
+                    <input type="text" name="headline" id="headline" value="{{ old('headline', $siteReport->headline) }}"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors duration-200 @error('headline') border-red-500 @enderror"
+                        placeholder="Enter headline" maxlength="255">
+                        @error('headline')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+
+                </div>
+
                 <!-- Site Selection with Search -->
                 <div>
                     <label for="site_search" class="block text-sm font-medium text-gray-700 mb-2">
@@ -161,6 +174,18 @@
                             </span>
                         </div>
                     </div>
+                </div>
+
+                <div>
+                    <label for="progress" class="block text-sm font-medium text-gray-700 mb-2">
+                        Progress
+                    </label>
+                    <textarea name="progress" id="progress" rows="5"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors duration-200 @error('progress') border-red-500 @enderror"
+                        placeholder="Enter progress details or updates...">{{ old('progress', $siteReport->progress) }}</textarea>
+                        @error('progress')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
                 </div>
 
                 <!-- Action buttons -->

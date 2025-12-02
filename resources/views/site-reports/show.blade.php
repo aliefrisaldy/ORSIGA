@@ -36,7 +36,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 justify-center text-center">
                             <div>
                                 <label class="block text-sm font-medium text-gray-500 mb-1">Ticket Number</label>
-                                <p class="text-lg font-semibold text-gray-900">#{{ $siteReport->ticket_number }}</p>
+                                <p class="text-lg font-medium text-gray-900">#{{ $siteReport->ticket_number }}</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-500 mb-1">Status</label>
@@ -57,6 +57,19 @@
                         </div>
                     </div>
                 </div>
+
+                @if($siteReport->headline)
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                            <h3 class="text-lg font-medium text-gray-900">
+                                Headline Ticket
+                            </h3>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-base text-gray-900 leading-relaxed">{{ $siteReport->headline }}</p>
+                        </div>
+                    </div>
+                @endif
 
                 <!-- Site Information -->
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -83,19 +96,19 @@
                     </div>
                 </div>
 
-                <!-- Site Description -->
-                @if($siteReport->site)
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                            <h3 class="text-lg font-medium text-gray-900">Site Description</h3>
-                        </div>
-                        <div class="p-6">
-                            <p class="text-lg text-gray-900">
-                                {{ $siteReport->site->description ?? 'This site has no description.' }}
-                            </p>
-                        </div>
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h3 class="text-lg font-medium text-gray-900">Detail Progres</h3>
                     </div>
-                @endif
+                    <div class="p-6">
+                        @if($siteReport->progress)
+                            <p class="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{{ $siteReport->progress }}</p>
+                        @else
+                            <p class="text-sm text-gray-500 italic">No progress details available</p>
+                        @endif
+
+                    </div>
+                </div>
 
                 <!-- Location Information -->
                 @if($siteReport->site)

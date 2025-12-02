@@ -22,7 +22,8 @@ class SiteReportController extends Controller
             $query->whereHas('site', function ($q) use ($search) {
                 $q->where('site_id', 'like', "%$search%")
                     ->orWhere('site_name', 'like', "%$search%");
-            })->orWhere('ticket_number', 'like', "%$search%");
+            })->orWhere('ticket_number', 'like', "%$search%")
+              ->orWhere('headline', 'like', "%$search%");
         }
 
         // Status filter
@@ -44,7 +45,7 @@ class SiteReportController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $reports = $query->latest()->paginate(20); // Ubah dari get() ke paginate(20)
+        $reports = $query->latest()->paginate(20);
 
         return view('site-reports.index', compact('reports'));
     }
@@ -59,7 +60,8 @@ class SiteReportController extends Controller
             $query->whereHas('site', function ($q) use ($search) {
                 $q->where('site_id', 'like', "%$search%")
                     ->orWhere('site_name', 'like', "%$search%");
-            })->orWhere('ticket_number', 'like', "%$search%");
+            })->orWhere('ticket_number', 'like', "%$search%")
+              ->orWhere('headline', 'like', "%$search%");
         }
 
         if ($request->filled('status')) {
@@ -93,11 +95,13 @@ class SiteReportController extends Controller
             fputcsv($file, [
                 'No',
                 'Ticket Number',
+                'Headline',
                 'Site ID',
                 'Site Name',
                 'Latitude',
                 'Longitude',
                 'Status',
+                'Progress',
                 'Opened At',
                 'Closed At',
                 'Duration (Hours)'
@@ -114,11 +118,13 @@ class SiteReportController extends Controller
                 fputcsv($file, [
                     $index + 1,
                     $report->ticket_number,
+                    $report->headline ?? '-',
                     $report->site->site_id ?? 'N/A',
                     $report->site->site_name ?? 'N/A',
                     $report->site->latitude ?? 'N/A',
                     $report->site->longitude ?? 'N/A',
                     $report->status,
+                    $report->progress ?? '-',
                     $report->created_at->timezone('Asia/Makassar')->format('Y-m-d H:i:s'),
                     $report->status === 'Close' ? $report->updated_at->timezone('Asia/Makassar')->format('Y-m-d H:i:s') : '-',
                     $duration ?: '-'
@@ -143,9 +149,13 @@ class SiteReportController extends Controller
         $validated = $request->validate([
             'ticket_number' => 'required|string|max:255|unique:site_reports,ticket_number',
             'site_id' => 'required|exists:sites,id',
+            'headline' => 'nullable|string|max:255',
+            'progress' => 'nullable|string',
         ], [], [
             'ticket_number' => 'Ticket Number',
             'site_id' => 'Site',
+            'headline' => 'Headline',
+            'progress' => 'Progress',
         ]);
 
         SiteReport::create($validated);
@@ -174,10 +184,14 @@ class SiteReportController extends Controller
             'ticket_number' => 'required|string|max:255|unique:site_reports,ticket_number,' . $siteReport->id,
             'site_id' => 'required|exists:sites,id',
             'status' => 'required|in:Open,Close',
+            'headline' => 'nullable|string|max:255',
+            'progress' => 'nullable|string',
         ], [], [
             'ticket_number' => 'Ticket Number',
             'site_id' => 'Site',
             'status' => 'Status',
+            'headline' => 'Headline',
+            'progress' => 'Progress',
         ]);
 
         $siteReport->update($validated);

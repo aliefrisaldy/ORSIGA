@@ -30,11 +30,11 @@
             const style = document.createElement('style');
             style.innerHTML = `
                 .main-content-preload {
-                    margin-left: ${isCollapsed ? '80px' : '230px'} !important;
+                    margin-left: ${isCollapsed ? '80px' : '243px'} !important;
                     transition: none !important;
                 }
                 .sidebar-preload {
-                    width: ${isCollapsed ? '80px' : '230px'} !important;
+                    width: ${isCollapsed ? '80px' : '243px'} !important;
                     transition: none !important;
                 }
                 @media (max-width: 768px) {
@@ -113,7 +113,7 @@
         }
 
         .sidebar-expanded {
-            width: 230px !important;
+            width: 243px !important;
         }
 
         /* Enhanced text animations */
@@ -152,7 +152,7 @@
         .user-info-section {
             border-top: 1px solid #f3f4f6;
             background: #f9fafb;
-            padding: 16px;
+            padding: 14px 16px;
             min-height: 120px;
             display: flex;
             flex-direction: column;
@@ -365,7 +365,7 @@
                 class="h-[73px] flex items-center px-4 border-b border-gray-100 bg-gradient-to-r from-red-50 to-white relative">
                 <div class="flex items-center min-w-0">
                     <!-- Logo tetap ukuran sama, tidak berubah -->
-                    <img src="{{ asset('images/logo.png') }}" alt="Logo" class="w-25 h-18 object-contain mr-2">
+                    <img src="{{ asset('images/logo_baru.png') }}" alt="Logo" class="w-28 h-18 object-contain mr-2">
 
                     <div x-show="!sidebarCollapsed"
                         x-transition:enter="transition-all duration-400 delay-300 cubic-bezier(0.23, 1, 0.32, 1)"
@@ -398,7 +398,7 @@
             </div>
 
             <!-- Navigation Menu - Fixed icon sizes -->
-            <nav class="flex-1 p-3 space-y-2 pb-2">
+            <nav class="flex-1 p-3 space-y-1.5 pb-0">
                 <h3 x-show="!sidebarCollapsed"
                     x-transition:enter="transition-all duration-400 delay-300 cubic-bezier(0.23, 1, 0.32, 1)"
                     x-transition:enter-start="opacity-0 transform translate-x-2"
@@ -438,7 +438,7 @@
                     x-transition:leave-start="opacity-100 transform translate-x-0"
                     x-transition:leave-end="opacity-0 transform translate-x-8"
                     class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
-                    Data Management
+                    Repair Management
                 </h3>
                 <a href="{{ route('reports.index') }}"
                     class="relative flex items-center flex-nowrap py-3 px-3 rounded-lg text-gray-700 transition-all duration-200 menu-item {{ request()->routeIs('reports.*') ? 'menu-active text-white' : '' }}">
@@ -459,55 +459,6 @@
                     <div x-show="sidebarCollapsed" class="tooltip">Repair Reports</div>
                 </a>
 
-                <a href="{{ route('site-reports.index') }}"
-                    class="relative flex items-center flex-nowrap py-3 px-3 rounded-lg text-gray-700 transition-all duration-200 menu-item {{ request()->routeIs('site-reports.*') ? 'menu-active text-white' : '' }}">
-                    <div class="sidebar-icon mr-3">
-                        <i class="fas fa-clipboard-list"></i>
-                    </div>
-
-                    <span x-show="!sidebarCollapsed"
-                        x-transition:enter="transition-all duration-400 delay-300 cubic-bezier(0.23, 1, 0.32, 1)"
-                        x-transition:enter-start="opacity-0 transform translate-x-2"
-                        x-transition:enter-end="opacity-100 transform translate-x-0"
-                        x-transition:leave="transition-all duration-200 cubic-bezier(0.4, 0, 1, 1)"
-                        x-transition:leave-start="opacity-100 transform translate-x-0"
-                        x-transition:leave-end="opacity-0 transform translate-x-8"
-                        class="whitespace-nowrap font-medium">Site Reports</span>
-
-                    <div x-show="sidebarCollapsed" class="tooltip">Site Reports</div>
-                </a>
-
-                <a href="{{ route('sites.index') }}"
-                    class="relative flex items-center flex-nowrap py-3 px-3 rounded-lg text-gray-700 transition-all duration-200 menu-item {{ request()->routeIs('sites.*') ? 'menu-active text-white' : '' }}">
-                    <!-- Icon dengan ukuran tetap menggunakan class sidebar-icon -->
-                    <div class="sidebar-icon mr-3">
-                        <i class="fas fa-tower-cell"></i>
-                    </div>
-
-                    <span x-show="!sidebarCollapsed"
-                        x-transition:enter="transition-all duration-400 delay-300 cubic-bezier(0.23, 1, 0.32, 1)"
-                        x-transition:enter-start="opacity-0 transform translate-x-2"
-                        x-transition:enter-end="opacity-100 transform translate-x-0"
-                        x-transition:leave="transition-all duration-200 cubic-bezier(0.4, 0, 1, 1)"
-                        x-transition:leave-start="opacity-100 transform translate-x-0"
-                        x-transition:leave-end="opacity-0 transform translate-x-8"
-                        class="whitespace-nowrap font-medium">Sites</span>
-
-                    <div x-show="sidebarCollapsed" class="tooltip">Sites</div>
-                </a>
-
-                <div class="border-t border-gray-300" style="border-width: 1px;"></div>
-
-                <h3 x-show="!sidebarCollapsed"
-                    x-transition:enter="transition-all duration-400 delay-300 cubic-bezier(0.23, 1, 0.32, 1)"
-                    x-transition:enter-start="opacity-0 transform translate-x-2"
-                    x-transition:enter-end="opacity-100 transform translate-x-0"
-                    x-transition:leave="transition-all duration-200 cubic-bezier(0.4, 0, 1, 1)"
-                    x-transition:leave-start="opacity-100 transform translate-x-0"
-                    x-transition:leave-end="opacity-0 transform translate-x-8"
-                    class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
-                    Location Maps
-                </h3>
                 <a href="{{ route('map.index') }}"
                     class="relative flex items-center flex-nowrap py-3 px-3 rounded-lg text-gray-700 transition-all duration-200 menu-item {{ request()->routeIs('map.*') ? 'menu-active text-white' : '' }}">
                     <!-- Icon dengan ukuran tetap menggunakan class sidebar-icon -->
@@ -527,6 +478,38 @@
                     <div x-show="sidebarCollapsed" class="tooltip">Repair Map</div>
                 </a>
 
+                <div class="border-t border-gray-300" style="border-width: 1px;"></div>
+
+                <h3 x-show="!sidebarCollapsed"
+                    x-transition:enter="transition-all duration-400 delay-300 cubic-bezier(0.23, 1, 0.32, 1)"
+                    x-transition:enter-start="opacity-0 transform translate-x-2"
+                    x-transition:enter-end="opacity-100 transform translate-x-0"
+                    x-transition:leave="transition-all duration-200 cubic-bezier(0.4, 0, 1, 1)"
+                    x-transition:leave-start="opacity-100 transform translate-x-0"
+                    x-transition:leave-end="opacity-0 transform translate-x-8"
+                    class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
+                    Site Management
+                </h3>
+
+                <a href="{{ route('site-reports.index') }}"
+                    class="relative flex items-center flex-nowrap py-3 px-3 rounded-lg text-gray-700 transition-all duration-200 menu-item {{ request()->routeIs('site-reports.*') ? 'menu-active text-white' : '' }}">
+                    <div class="sidebar-icon mr-1">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+
+                    <span x-show="!sidebarCollapsed"
+                        x-transition:enter="transition-all duration-400 delay-300 cubic-bezier(0.23, 1, 0.32, 1)"
+                        x-transition:enter-start="opacity-0 transform translate-x-2"
+                        x-transition:enter-end="opacity-100 transform translate-x-0"
+                        x-transition:leave="transition-all duration-200 cubic-bezier(0.4, 0, 1, 1)"
+                        x-transition:leave-start="opacity-100 transform translate-x-0"
+                        x-transition:leave-end="opacity-0 transform translate-x-8"
+                        class="whitespace-nowrap font-medium ">Site Disruption Reports</span>
+
+                    <div x-show="sidebarCollapsed" class="tooltip">Site Reports</div>
+                </a>
+
+
                 <a href="{{ route('site-map.index') }}"
                     class="relative flex items-center flex-nowrap py-3 px-3 rounded-lg text-gray-700 transition-all duration-200 menu-item {{ request()->routeIs('site-map.*') ? 'menu-active text-white' : '' }}">
                     <div class="sidebar-icon mr-3">
@@ -539,8 +522,40 @@
                         x-transition:leave="transition-all duration-200 cubic-bezier(0.4, 0, 1, 1)"
                         x-transition:leave-start="opacity-100 transform translate-x-0"
                         x-transition:leave-end="opacity-0 transform translate-x-8"
-                        class="whitespace-nowrap font-medium">Site Map</span>
-                    <div x-show="sidebarCollapsed" class="tooltip">Site Map</div>
+                        class="whitespace-nowrap font-medium">Site Disruption Map</span>
+                    <div x-show="sidebarCollapsed" class="tooltip">Site Disruption Map</div>
+                </a>
+
+                <div class="border-t border-gray-300" style="border-width: 1px;"></div>
+
+                <h3 x-show="!sidebarCollapsed"
+                    x-transition:enter="transition-all duration-400 delay-300 cubic-bezier(0.23, 1, 0.32, 1)"
+                    x-transition:enter-start="opacity-0 transform translate-x-2"
+                    x-transition:enter-end="opacity-100 transform translate-x-0"
+                    x-transition:leave="transition-all duration-200 cubic-bezier(0.4, 0, 1, 1)"
+                    x-transition:leave-start="opacity-100 transform translate-x-0"
+                    x-transition:leave-end="opacity-0 transform translate-x-8"
+                    class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
+                    Data Master
+                </h3>
+
+                 <a href="{{ route('sites.index') }}"
+                    class="relative flex items-center flex-nowrap py-3 px-3 rounded-lg text-gray-700 transition-all duration-200 menu-item {{ request()->routeIs('sites.*') ? 'menu-active text-white' : '' }}">
+                    <!-- Icon dengan ukuran tetap menggunakan class sidebar-icon -->
+                    <div class="sidebar-icon mr-3">
+                        <i class="fas fa-tower-cell"></i>
+                    </div>
+
+                    <span x-show="!sidebarCollapsed"
+                        x-transition:enter="transition-all duration-400 delay-300 cubic-bezier(0.23, 1, 0.32, 1)"
+                        x-transition:enter-start="opacity-0 transform translate-x-2"
+                        x-transition:enter-end="opacity-100 transform translate-x-0"
+                        x-transition:leave="transition-all duration-200 cubic-bezier(0.4, 0, 1, 1)"
+                        x-transition:leave-start="opacity-100 transform translate-x-0"
+                        x-transition:leave-end="opacity-0 transform translate-x-8"
+                        class="whitespace-nowrap font-medium">Sites Data</span>
+
+                    <div x-show="sidebarCollapsed" class="tooltip">Sites Data</div>
                 </a>
             </nav>
 
@@ -549,7 +564,7 @@
                 <!-- User Card -->
                 <div class="user-info-card" :class="sidebarCollapsed ? 'collapsed' : 'expanded'">
                     <div class="user-avatar">
-                        <i class="fas fa-user text-white text-sm"></i>
+                        <i class="fas fa-user text-white text-xs"></i>
                     </div>
 
                     <div class="user-info-text" :class="sidebarCollapsed ? 'hidden' : ''">
@@ -578,7 +593,7 @@
         <!-- Main Content -->
         <!-- Added preload classes and improved transition -->
         <div class="flex flex-col min-h-screen main-content-transition main-content-preload"
-            :style="`margin-left: ${sidebarCollapsed ? '80px' : '230px'}`"
+            :style="`margin-left: ${sidebarCollapsed ? '80px' : '243px'}`"
             x-bind:class="{ 'md:ml-20': sidebarCollapsed, 'md:ml-70': !sidebarCollapsed }">
 
             <!-- Top Navigation Bar -->
