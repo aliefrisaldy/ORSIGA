@@ -366,11 +366,18 @@
             });
 
             function loadKmlLayer(url, name) {
-                if (kmlLayers[name]) return;
+                if (kmlLayers[name]) {
+                    console.log('KML already loaded:', name);
+                    return;
+                }
 
+                console.log('Loading KML:', name);
+                
                 const kmlLayer = omnivore.kml(url)
-                    .on('ready', function () {
-                        this.eachLayer(function (layer) {
+                    .on('ready', function() {
+                        console.log('KML loaded successfully:', name);
+                        
+                        this.eachLayer(function(layer) {
                             if (layer instanceof L.Polyline) {
                                 layer.setStyle({
                                     color: '#dc2626',
@@ -380,26 +387,108 @@
                                     lineCap: 'round',
                                     lineJoin: 'round'
                                 });
-
-                                layer.on('mouseover', function () {
-                                    this.setStyle({ weight: 6, color: '#2563eb', opacity: 1 });
+                                
+                                const properties = layer.feature.properties || {};
+                                let popupContent = `
+                                    <div class="p-3 min-w-64">
+                                        <div class="flex items-center mb-3 pb-2 border-b border-gray-200">
+                                            <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                                                <i class="fas fa-network-wired text-red-600"></i>
+                                            </div>
+                                            <div class="font-bold text-gray-900">${name}</div>
+                                        </div>`;
+                                
+                                if (Object.keys(properties).length > 0) {
+                                    popupContent += '<div class="space-y-2 text-sm">';
+                                    for (const [key, value] of Object.entries(properties)) {
+                                        if (value && key !== 'styleUrl' && key !== 'styleHash') {
+                                            const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                            popupContent += `
+                                                <div class="flex items-start">
+                                                    <span class="font-semibold text-gray-700 min-w-[100px]">${formattedKey}:</span>
+                                                    <span class="text-gray-900 ml-2">${value}</span>
+                                                </div>`;
+                                        }
+                                    }
+                                    popupContent += '</div>';
+                                } else {
+                                    popupContent += '<div class="text-sm text-gray-500 italic">No additional information available</div>';
+                                }
+                                
+                                popupContent += '</div>';
+                                layer.bindPopup(popupContent);
+                                
+                                layer.on('mouseover', function(e) {
+                                    this.setStyle({ 
+                                        weight: 6, 
+                                        color: '#2563eb',  
+                                        opacity: 1,
+                                        dashArray: '10, 5'
+                                    });
                                     this.bringToFront();
                                 });
-                                layer.on('mouseout', function () {
-                                    this.setStyle({ weight: 4, color: '#dc2626', opacity: 0.85 });
+                                layer.on('mouseout', function() {
+                                    this.setStyle({ 
+                                        weight: 4, 
+                                        color: '#dc2626',  
+                                        opacity: 0.85,
+                                        dashArray: '10, 5'
+                                    });
                                 });
                             } else if (layer instanceof L.Marker) {
                                 const stoIcon = L.divIcon({
                                     className: 'custom-sto-marker',
-                                    html: `<div class="w-6 h-6 bg-blue-600 rounded-full shadow-lg flex items-center justify-center border-2 border-white hover:bg-blue-700 transition-all">
-                                                    <i class="fas fa-building text-white text-sm"></i>
-                                                </div>`,
+                                    html: `
+                                        <div class="relative">
+                                            <div class="w-6 h-6 bg-blue-600 rounded-full shadow-lg flex items-center justify-center border-2 border-white hover:bg-blue-700 transition-all duration-200 hover:scale-110 cursor-pointer">
+                                                <i class="fas fa-building text-white text-sm"></i>
+                                            </div>
+                                        </div>
+                                    `,
                                     iconSize: [32, 32],
-                                    iconAnchor: [16, 16]
+                                    iconAnchor: [16, 16],
+                                    popupAnchor: [0, -16]
                                 });
+                                
                                 layer.setIcon(stoIcon);
+                                
+                                const properties = layer.feature.properties || {};
+                                let popupContent = `
+                                    <div class="p-3 min-w-64">
+                                        <div class="flex items-center mb-3 pb-2 border-b border-gray-200">
+                                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                                <i class="fas fa-building text-blue-600 text-lg"></i>
+                                            </div>
+                                            <div>
+                                                <div class="font-bold text-gray-900">${properties.name || name}</div>
+                                                <div class="text-xs text-gray-500">Central Office / STO</div>
+                                            </div>
+                                        </div>`;
+                                
+                                if (Object.keys(properties).length > 0) {
+                                    popupContent += '<div class="space-y-2 text-sm">';
+                                    for (const [key, value] of Object.entries(properties)) {
+                                        if (value && key !== 'styleUrl' && key !== 'styleHash' && key !== 'name') {
+                                            const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                            popupContent += `
+                                                <div class="flex items-start">
+                                                    <span class="font-semibold text-gray-700 min-w-[100px]">${formattedKey}:</span>
+                                                    <span class="text-gray-900 ml-2">${value}</span>
+                                                </div>`;
+                                        }
+                                    }
+                                    popupContent += '</div>';
+                                }
+                                
+                                popupContent += '</div>';
+                                layer.bindPopup(popupContent);
                             }
                         });
+                    })
+                    .on('error', function(error) {
+                        console.error('Error loading KML:', name, error);
+                        alert('Failed to load KML layer: ' + name);
+                        document.querySelector(`input[data-kml-name="${name}"]`).checked = false;
                     })
                     .addTo(kmlLayersGroup);
 

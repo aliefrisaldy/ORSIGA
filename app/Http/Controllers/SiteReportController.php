@@ -104,17 +104,11 @@ class SiteReportController extends Controller
                 'Progress',
                 'Opened At',
                 'Closed At',
-                'Duration (Hours)'
+                'Time To Recovery (Hours)'
             ]);
 
             // CSV Data
             foreach ($reports as $index => $report) {
-                $duration = '';
-                if ($report->status === 'Close' && $report->created_at && $report->updated_at) {
-                    $hours = $report->created_at->diffInHours($report->updated_at);
-                    $duration = number_format($hours, 2);
-                }
-
                 fputcsv($file, [
                     $index + 1,
                     $report->ticket_number,
@@ -126,8 +120,8 @@ class SiteReportController extends Controller
                     $report->status,
                     $report->progress ?? '-',
                     $report->created_at->timezone('Asia/Makassar')->format('Y-m-d H:i:s'),
-                    $report->status === 'Close' ? $report->updated_at->timezone('Asia/Makassar')->format('Y-m-d H:i:s') : '-',
-                    $duration ?: '-'
+                    $report->closed_at ? $report->closed_at->timezone('Asia/Makassar')->format('Y-m-d H:i:s') : '-',
+                    $report->time_to_recovery ?? '-'
                 ]);
             }
 
@@ -194,6 +188,16 @@ class SiteReportController extends Controller
             'progress' => 'Progress',
         ]);
 
+        // Jika status berubah menjadi Close, set closed_at
+        if ($validated['status'] === 'Close' && $siteReport->status !== 'Close') {
+            $validated['closed_at'] = now();
+        }
+        
+        // Jika status berubah menjadi Open, hapus closed_at
+        if ($validated['status'] === 'Open' && $siteReport->status !== 'Open') {
+            $validated['closed_at'] = null;
+        }
+
         $siteReport->update($validated);
 
         return redirect()->route('site-reports.index')
@@ -243,7 +247,10 @@ class SiteReportController extends Controller
 
         $count = SiteReport::whereIn('id', $validated['report_ids'])
             ->where('status', 'Open')
-            ->update(['status' => 'Close']);
+            ->update([
+                'status' => 'Close',
+                'closed_at' => now()
+            ]);
 
         return redirect()->back()
             ->with('success', "$count report(s) closed successfully.");

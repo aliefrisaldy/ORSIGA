@@ -154,20 +154,32 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-500 mb-1">
-                                @if($siteReport->status === 'Close')
+                                @if($siteReport->status === 'Close' && $siteReport->closed_at)
                                     <i class="fas fa-check-circle text-green-500 mr-1"></i>Closed At
                                 @else
                                     <i class="fas fa-clock text-gray-400 mr-1"></i>Closed At
                                 @endif
                             </label>
-                            @if($siteReport->status === 'Close')
+                            @if($siteReport->status === 'Close' && $siteReport->closed_at)
                                 <p class="text-sm text-gray-900">
-                                    {{ $siteReport->updated_at->timezone('Asia/Makassar')->format('d M Y H:i') }} WITA
+                                    {{ $siteReport->closed_at->timezone('Asia/Makassar')->format('d M Y H:i') }} WITA
                                 </p>
                             @else
                                 <p class="text-sm text-gray-400 italic">Not closed yet</p>
                             @endif
                         </div>
+
+                        @if($siteReport->status === 'Close' && $siteReport->time_to_recovery)
+                            <div class="pt-2 border-t border-gray-200">
+                                <label class="block text-sm font-medium text-gray-500 mb-1">
+                                    <i class="fas fa-clock text-blue-600 mr-1"></i>Time To Recovery
+                                </label>
+                                <p class="text-sm text-gray-900">
+                                    {{ $siteReport->formatted_time_to_recovery }}
+                                </p>
+                            </div>
+                        @endif
+
                         <div class="pt-2 border-t border-gray-200">
                             <label class="block text-sm font-medium text-gray-500 mb-1">Created</label>
                             <p class="text-sm text-gray-900">
