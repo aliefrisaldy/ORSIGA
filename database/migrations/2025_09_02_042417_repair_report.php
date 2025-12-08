@@ -14,16 +14,16 @@ return new class extends Migration {
             $table->bigIncrements('id_repair_reports');
             $table->string('ticket_number')->unique();
             $table->string('technician_name');
-            $table->decimal('latitude', 10, 7);
-            $table->decimal('longitude', 10, 7);
+            $table->string('latitude', 30);
+            $table->string('longitude', 30);
             $table->json('documentation')->nullable();
             $table->longText('work_details')->nullable();
-            
+
             // Gunakan string biasa untuk SQLite, Laravel akan handle sebagai ENUM di MySQL
             $table->enum('repair_type', ['Permanent', 'Temporary'])->nullable();
-            
+
             $table->enum('cable_type', ['Network', 'Access'])->nullable();
-            
+
             $table->enum('disruption_cause', [
                 'Vandalism',
                 'Animal Disturbance',
@@ -32,7 +32,7 @@ return new class extends Migration {
                 'Electrical Issue',
                 'Traffic Accident'
             ])->nullable();
-            
+
             $table->timestamps();
         });
     }
