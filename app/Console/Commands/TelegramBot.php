@@ -65,11 +65,11 @@ class TelegramBot extends Command
 
             foreach ($updates as $update) {
                 $offset = $update->getUpdateId();
-                
+
                 // Panggil method yang sama untuk process update
                 $this->processUpdate($update);
             }
-            
+
             sleep(1);
         }
     }
@@ -79,7 +79,7 @@ class TelegramBot extends Command
     {
         // Convert array to Update object
         $update = new \Telegram\Bot\Objects\Update($updateData);
-        
+
         // Panggil method yang sama untuk process update
         $this->processUpdate($update);
     }
@@ -170,7 +170,7 @@ class TelegramBot extends Command
             // 🆕 Handle penyebab gangguan untuk tiket BARU
             if ($state === 'penyebab_gangguan') {
                 $validCauses = array_keys($this->penyebabMap);
-                
+
                 if (in_array($data, $validCauses)) {
                     $reportData['disruption_cause'] = $this->penyebabMap[$data];
                     Cache::put("report_data_$chatId", $reportData, 300);
@@ -300,7 +300,7 @@ class TelegramBot extends Command
                 if (!empty($selectedRelations)) {
                     foreach ($selectedRelations as $ticketNumber) {
                         $relatedReport = Report::where('ticket_number', $ticketNumber)->first();
-                        
+
                         if ($relatedReport) {
                             $report->relatedReports()->syncWithoutDetaching($relatedReport->id_repair_reports);
                             $relatedReport->relatedReports()->syncWithoutDetaching($report->id_repair_reports);
@@ -353,7 +353,7 @@ class TelegramBot extends Command
                         'repair_type' => $reportData['repair_type'] ?? $existingReport->repair_type,
                         'cable_type' => $reportData['cable_type'] ?? $existingReport->cable_type,
                         'disruption_cause' => $reportData['disruption_cause'] ?? $existingReport->disruption_cause,
-                        'documentation' => $mergedDocs, 
+                        'documentation' => $mergedDocs,
                     ]);
 
                     $report = $existingReport;
@@ -386,7 +386,7 @@ class TelegramBot extends Command
                 if (!empty($selectedRelations)) {
                     foreach ($selectedRelations as $ticketNumber) {
                         $relatedReport = Report::where('ticket_number', $ticketNumber)->first();
-                        
+
                         if ($relatedReport) {
                             $report->relatedReports()->syncWithoutDetaching($relatedReport->id_repair_reports);
                             $relatedReport->relatedReports()->syncWithoutDetaching($report->id_repair_reports);
@@ -619,7 +619,7 @@ class TelegramBot extends Command
 
                 case 'relasi':
                     $noTiketRelasi = trim($text);
-                    
+
                     if (empty($noTiketRelasi)) {
                         $this->getTelegram()->sendMessage([
                             'chat_id' => $chatId,
@@ -689,7 +689,8 @@ class TelegramBot extends Command
                             'inline_keyboard' => [
                                 [
                                     ['text' => '➕ Tambah Lagi', 'callback_data' => 'relasi_tambah_lagi'],
-                                    ['text' => '✅ Selesai', 'callback_data' => 'relasi_confirm_selesai']]
+                                    ['text' => '✅ Selesai', 'callback_data' => 'relasi_confirm_selesai']
+                                ]
                             ]
                         ])
                     ]);
@@ -840,8 +841,6 @@ class TelegramBot extends Command
                 ]);
             }
 
-            // Kirim foto dokumentasi jika ada
-            $this->sendDocumentationPhotos($chatId, $report);
         }
 
         $this->showMainMenu($chatId);
@@ -980,42 +979,5 @@ class TelegramBot extends Command
         }
 
         $this->resetCacheAndShowMenu($chatId);
-    }
-
-    // 🔹 Method untuk mengirim foto dokumentasi
-    private function sendDocumentationPhotos($chatId, $report)
-    {
-        if ($report->documentation) {
-            $dokumentasi = is_string($report->documentation)
-                ? json_decode($report->documentation, true)
-                : $report->documentation;
-
-            if (is_array($dokumentasi) && !empty($dokumentasi)) {
-                $this->getTelegram()->sendMessage([
-                    'chat_id' => $chatId,
-                    'text' => "📸 *Foto Dokumentasi:*",
-                    'parse_mode' => 'Markdown'
-                ]);
-
-                foreach ($dokumentasi as $index => $fileName) {
-                    $filePath = storage_path('app/public/' . $fileName);
-
-                    if (file_exists($filePath)) {
-                        try {
-                            $this->getTelegram()->sendPhoto([
-                                'chat_id' => $chatId,
-                                'photo' => new \CURLFile($filePath),
-                                'caption' => "📷 Dokumentasi " . ($index + 1)
-                            ]);
-                        } catch (\Exception $e) {
-                            $this->getTelegram()->sendMessage([
-                                'chat_id' => $chatId,
-                                'text' => "❌ Gagal mengirim foto dokumentasi " . ($index + 1)
-                            ]);
-                        }
-                    }
-                }
-            }
-        }
     }
 }
